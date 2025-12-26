@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab429fdf45fcc8e44a9da1a560f8ec4b, type: 3}
+  m_Name: SoundData
+  m_EditorClassIdentifier: 
+  bgmList:
+  - name: BGM
+    clip: {fileID: 8300000, guid: 0d2ae5dfa006cb1469790ae2244b4331, type: 3}
+    volume: 1
+  sfxList:
+  - name: ButtonClick
+    clip: {fileID: 8300000, guid: 74375efbc69974b48a7dbefbc252fa4f, type: 3}
+    volume: 1
+  - name: Popup
+    clip: {fileID: 8300000, guid: 5ac9f4a271d054d44941946c0fa4987b, type: 3}
+    volume: 1
+  - name: Lose
+    clip: {fileID: 8300000, guid: 363a9871d9a754b42bbca74bc9c03dc8, type: 3}
+    volume: 1
+  - name: Win
+    clip: {fileID: 8300000, guid: 7951adbe8ffea6e42a8f89e5e3d44ced, type: 3}
+    volume: 1
+  - name: DropFail
+    clip: {fileID: 8300000, guid: 505e78932e2c470458be483309e376af, type: 3}
+    volume: 1
+  - name: DropSuccess
+    clip: {fileID: 8300000, guid: 70298ba404acbc54a9f37834f8c2fb30, type: 3}
+    volume: 1
