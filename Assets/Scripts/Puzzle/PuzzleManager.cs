@@ -117,6 +117,12 @@ public class PuzzleManager : MonoBehaviour
         _placedCount = 0;
         _isGameRunning = true;
         _isGameEnded = false;
+
+        // 결과 오브젝트 확실히 비활성화
+        if (_resultObjectA != null) _resultObjectA.SetActive(false);
+        if (_successObjectB != null) _successObjectB.SetActive(false);
+        if (_failObjectC != null) _failObjectC.SetActive(false);
+
         UpdateTimerDisplay();
     }
 
