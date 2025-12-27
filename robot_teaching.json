@@ -1,0 +1,189 @@
+{
+    "name": "퍼즐 피킹 테스트 (디테일)",
+    "description": "초기 위치에서 퍼즐 집기/놓기 시퀀스 - 더 자연스러운 동작",
+    "totalDuration": 45.0,
+    "steps": [
+        {
+            "stepNumber": 1,
+            "name": "대기 자세로 이동",
+            "time": 0.0,
+            "duration": 3.0,
+            "action": {
+                "type": "move_joint",
+                "joints": [0, -50, 50, -90, -90, 0],
+                "velocity": 0.8,
+                "acceleration": 1.2
+            }
+        },
+        {
+            "stepNumber": 2,
+            "name": "J1 회전 시작 (30도)",
+            "time": 3.0,
+            "duration": 1.5,
+            "action": {
+                "type": "move_joint",
+                "joints": [30, -50, 50, -90, -90, 0],
+                "velocity": 0.8,
+                "acceleration": 1.2
+            }
+        },
+        {
+            "stepNumber": 3,
+            "name": "J1 회전 완료 (60도)",
+            "time": 4.5,
+            "duration": 1.5,
+            "action": {
+                "type": "move_joint",
+                "joints": [60, -50, 50, -90, -90, 0],
+                "velocity": 0.8,
+                "acceleration": 1.2
+            }
+        },
+        {
+            "stepNumber": 4,
+            "name": "피킹 위치 접근",
+            "time": 6.0,
+            "duration": 2.0,
+            "action": {
+                "type": "move_joint",
+                "joints": [60, -50, 60, -100, -90, 0],
+                "velocity": 0.5,
+                "acceleration": 0.8
+            }
+        },
+        {
+            "stepNumber": 5,
+            "name": "피킹 위치 도달",
+            "time": 8.0,
+            "duration": 2.0,
+            "action": {
+                "type": "move_joint",
+                "joints": [60, -50, 70, -110, -90, 0],
+                "velocity": 0.3,
+                "acceleration": 0.5
+            }
+        },
+        {
+            "stepNumber": 6,
+            "name": "그리퍼 열기 (물체 잡기 준비)",
+            "time": 10.0,
+            "duration": 1.5,
+            "action": {
+                "type": "set_gripper",
+                "gripperPosition": 100,
+                "gripperForce": 50
+            }
+        },
+        {
+            "stepNumber": 7,
+            "name": "그리퍼 닫기 (물체 잡기)",
+            "time": 11.5,
+            "duration": 1.5,
+            "action": {
+                "type": "set_gripper",
+                "gripperPosition": 30,
+                "gripperForce": 70
+            }
+        },
+        {
+            "stepNumber": 8,
+            "name": "물체 들어올리기",
+            "time": 13.0,
+            "duration": 2.5,
+            "action": {
+                "type": "move_joint",
+                "joints": [60, -50, 50, -90, -90, 0],
+                "velocity": 0.5,
+                "acceleration": 0.8
+            }
+        },
+        {
+            "stepNumber": 9,
+            "name": "J1 복귀 회전 (30도)",
+            "time": 15.5,
+            "duration": 2.0,
+            "action": {
+                "type": "move_joint",
+                "joints": [30, -50, 50, -90, -90, 0],
+                "velocity": 0.8,
+                "acceleration": 1.2
+            }
+        },
+        {
+            "stepNumber": 10,
+            "name": "대기 자세 복귀",
+            "time": 17.5,
+            "duration": 2.0,
+            "action": {
+                "type": "move_joint",
+                "joints": [0, -50, 50, -90, -90, 0],
+                "velocity": 0.8,
+                "acceleration": 1.2
+            }
+        },
+        {
+            "stepNumber": 11,
+            "name": "대기 (복귀 완료 후)",
+            "time": 19.5,
+            "duration": 1.0,
+            "action": {
+                "type": "wait"
+            }
+        },
+        {
+            "stepNumber": 12,
+            "name": "그리퍼 열기 (물체 놓기)",
+            "time": 20.5,
+            "duration": 1.5,
+            "action": {
+                "type": "set_gripper",
+                "gripperPosition": 100,
+                "gripperForce": 50
+            }
+        },
+        {
+            "stepNumber": 13,
+            "name": "잠시 대기",
+            "time": 22.0,
+            "duration": 1.0,
+            "action": {
+                "type": "wait"
+            }
+        },
+        {
+            "stepNumber": 14,
+            "name": "그리퍼 닫기",
+            "time": 23.0,
+            "duration": 1.5,
+            "action": {
+                "type": "set_gripper",
+                "gripperPosition": 0,
+                "gripperForce": 50
+            }
+        },
+        {
+            "stepNumber": 15,
+            "name": "팔 접기 시작",
+            "time": 24.5,
+            "duration": 2.5,
+            "action": {
+                "type": "move_joint",
+                "joints": [0, -30, 30, -60, -90, 0],
+                "velocity": 0.6,
+                "acceleration": 1.0
+            }
+        },
+        {
+            "stepNumber": 16,
+            "name": "초기 위치로 복귀",
+            "time": 27.0,
+            "duration": 3.5,
+            "action": {
+                "type": "move_joint",
+                "joints": [0, 0, 0, 0, 0, 0],
+                "velocity": 0.5,
+                "acceleration": 0.8
+            }
+        }
+    ]
+}
