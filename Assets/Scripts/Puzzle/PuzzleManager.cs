@@ -32,6 +32,10 @@ public class PuzzleManager : MonoBehaviour
     // 실패 시 활성화 오브젝트
     [SerializeField] private GameObject _failObjectC;
 
+    [Header("로봇 정리 중 패널")]
+    // 로봇 정리 동작 중 터치 방지용 패널
+    [SerializeField] private GameObject _cleanupBlockPanel;
+
     [Header("랜덤 배치 범위")]
     // X축 범위 (부모 기준)
     [SerializeField] private Vector2 _randomRangeX = new Vector2(-200f, 200f);
@@ -109,10 +113,13 @@ public class PuzzleManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 게임 시작 (타이머 시작)
+    /// 게임 시작 (타이머 시작 + 로봇 티칭 자동 시작)
     /// </summary>
     public void StartGame()
     {
+        // 로봇 티칭 JSON에서 제한시간 가져오기
+        UpdateTimeLimitFromRobot();
+
         _remainingTime = _timeLimit;
         _placedCount = 0;
         _isGameRunning = true;
@@ -124,6 +131,75 @@ public class PuzzleManager : MonoBehaviour
         if (_failObjectC != null) _failObjectC.SetActive(false);
 
         UpdateTimerDisplay();
+
+        // 로봇 티칭 자동 시작
+        StartRobotTeaching();
+    }
+
+    /// <summary>
+    /// 로봇 티칭 JSON에서 제한시간 가져오기
+    /// </summary>
+    private void UpdateTimeLimitFromRobot()
+    {
+        var robot = FindObjectOfType<LebaiRobotController>();
+        if (robot != null)
+        {
+            float duration = robot.GetTeachingDuration();
+            if (duration > 0)
+            {
+                _timeLimit = duration;
+                Debug.Log($"[PuzzleManager] 제한시간 설정: {_timeLimit}초 (robot_teaching.json)");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 로봇 티칭 시작 (완료 시 로봇 승리)
+    /// </summary>
+    private void StartRobotTeaching()
+    {
+        var robot = FindObjectOfType<LebaiRobotController>();
+        if (robot != null)
+        {
+            // 로봇 티칭 완료 시 로봇 승리 처리
+            robot.StartTeachingExternal(OnRobotTeachingComplete);
+        }
+    }
+
+    /// <summary>
+    /// 로봇 티칭 완료 시 호출 (로봇 승리!)
+    /// </summary>
+    private void OnRobotTeachingComplete()
+    {
+        // 이미 게임이 끝났으면 무시 (유저가 먼저 이긴 경우)
+        if (_isGameEnded) return;
+
+        Debug.Log("[PuzzleManager] 로봇 티칭 완료 - 로봇 승리!");
+
+        _isGameRunning = false;
+        _isGameEnded = true;
+
+        // 실패 사운드 재생
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySFX("Lose");
+        }
+
+        // A + C 활성화 (로봇 승리 = 유저 패배)
+        if (_resultObjectA != null) _resultObjectA.SetActive(true);
+        if (_failObjectC != null) _failObjectC.SetActive(true);
+    }
+
+    /// <summary>
+    /// 로봇 티칭 중지
+    /// </summary>
+    private void StopRobotTeaching()
+    {
+        var robot = FindObjectOfType<LebaiRobotController>();
+        if (robot != null)
+        {
+            robot.StopTeachingExternal();
+        }
     }
 
     void Update()
@@ -168,7 +244,7 @@ public class PuzzleManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 시간 초과 시 호출
+    /// 시간 초과 시 호출 (= 로봇 승리!)
     /// </summary>
     private void OnTimeUp()
     {
@@ -177,7 +253,10 @@ public class PuzzleManager : MonoBehaviour
         _isGameRunning = false;
         _isGameEnded = true;
 
-        Debug.Log("시간 초과! 실패!");
+        Debug.Log("시간 초과! 로봇 승리!");
+
+        // 로봇 티칭 중지
+        StopRobotTeaching();
 
         // 실패 사운드 재생
         if (SoundManager.Instance != null)
@@ -185,7 +264,7 @@ public class PuzzleManager : MonoBehaviour
             SoundManager.Instance.PlaySFX("Lose");
         }
 
-        // A + C 활성화 (실패)
+        // A + C 활성화 (로봇 승리 = 유저 패배)
         if (_resultObjectA != null) _resultObjectA.SetActive(true);
         if (_failObjectC != null) _failObjectC.SetActive(true);
     }
@@ -278,7 +357,7 @@ public class PuzzleManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 퍼즐 완성 시 호출
+    /// 퍼즐 완성 시 호출 (= 유저 승리!)
     /// </summary>
     private void OnPuzzleCompleted()
     {
@@ -287,7 +366,10 @@ public class PuzzleManager : MonoBehaviour
         _isGameRunning = false;
         _isGameEnded = true;
 
-        Debug.Log("퍼즐 완성! 성공!");
+        Debug.Log("퍼즐 완성! 유저 승리!");
+
+        // 로봇 티칭 중지 (유저가 먼저 이겼으므로)
+        StopRobotTeaching();
 
         // 성공 사운드 재생
         if (SoundManager.Instance != null)
@@ -295,7 +377,7 @@ public class PuzzleManager : MonoBehaviour
             SoundManager.Instance.PlaySFX("Win");
         }
 
-        // A + B 활성화 (성공)
+        // A + B 활성화 (유저 승리)
         if (_resultObjectA != null) _resultObjectA.SetActive(true);
         if (_successObjectB != null) _successObjectB.SetActive(true);
     }
@@ -336,36 +418,44 @@ public class PuzzleManager : MonoBehaviour
             SoundManager.Instance.PlaySFX("ButtonClick");
         }
 
-        // 타이머 정지
-        _isGameRunning = false;
-        _isGameEnded = false;
-        _remainingTime = _timeLimit;
-        _placedCount = 0;
+        // 로봇 티칭 중지
+        StopRobotTeaching();
 
-        // 패널 감지 상태 초기화 (다시 활성화될 때 타이머 시작하도록)
-        _wasPanelActive = false;
-
-        // 결과 오브젝트 비활성화
-        if (_resultObjectA != null) _resultObjectA.SetActive(false);
-        if (_successObjectB != null) _successObjectB.SetActive(false);
-        if (_failObjectC != null) _failObjectC.SetActive(false);
-
-        // 퍼즐 초기화
-        ResetAllPuzzlePieces();
-
-        // 게임 매니저 초기화
-        if (GameManager._Instance != null)
+        // 로봇 정리 시작 (터치 방지 패널 활성화)
+        StartCleanupWithBlock(() =>
         {
-            GameManager._Instance.ResetGame();
-        }
+            // 정리 완료 후 실행
+            // 타이머 정지
+            _isGameRunning = false;
+            _isGameEnded = false;
+            _remainingTime = _timeLimit;
+            _placedCount = 0;
 
-        // 레디 패널로 이동
-        if (UIManager._Instance != null)
-        {
-            UIManager._Instance.ShowReadyPanel();
-        }
+            // 패널 감지 상태 초기화 (다시 활성화될 때 타이머 시작하도록)
+            _wasPanelActive = false;
 
-        UpdateTimerDisplay();
+            // 결과 오브젝트 비활성화
+            if (_resultObjectA != null) _resultObjectA.SetActive(false);
+            if (_successObjectB != null) _successObjectB.SetActive(false);
+            if (_failObjectC != null) _failObjectC.SetActive(false);
+
+            // 퍼즐 초기화
+            ResetAllPuzzlePieces();
+
+            // 게임 매니저 초기화
+            if (GameManager._Instance != null)
+            {
+                GameManager._Instance.ResetGame();
+            }
+
+            // 레디 패널로 이동
+            if (UIManager._Instance != null)
+            {
+                UIManager._Instance.ShowReadyPanel();
+            }
+
+            UpdateTimerDisplay();
+        });
     }
 
     /// <summary>
@@ -379,16 +469,59 @@ public class PuzzleManager : MonoBehaviour
             SoundManager.Instance.PlaySFX("ButtonClick");
         }
 
-        // 결과 오브젝트 비활성화
-        if (_resultObjectA != null) _resultObjectA.SetActive(false);
-        if (_successObjectB != null) _successObjectB.SetActive(false);
-        if (_failObjectC != null) _failObjectC.SetActive(false);
+        // 로봇 티칭 중지
+        StopRobotTeaching();
 
-        // 퍼즐 초기화
-        ResetAllPuzzlePieces();
+        // 로봇 정리 시작 (터치 방지 패널 활성화)
+        StartCleanupWithBlock(() =>
+        {
+            // 정리 완료 후 실행
+            // 결과 오브젝트 비활성화
+            if (_resultObjectA != null) _resultObjectA.SetActive(false);
+            if (_successObjectB != null) _successObjectB.SetActive(false);
+            if (_failObjectC != null) _failObjectC.SetActive(false);
 
-        // 타이머 초기화 및 게임 시작
-        StartGame();
+            // 퍼즐 초기화
+            ResetAllPuzzlePieces();
+
+            // 타이머 초기화 및 게임 시작
+            StartGame();
+        });
+    }
+
+    /// <summary>
+    /// 로봇 정리 시작 + 터치 방지 패널 활성화
+    /// </summary>
+    private void StartCleanupWithBlock(System.Action onComplete)
+    {
+        // 터치 방지 패널 활성화
+        if (_cleanupBlockPanel != null)
+        {
+            _cleanupBlockPanel.SetActive(true);
+        }
+
+        var robot = FindObjectOfType<LebaiRobotController>();
+        if (robot != null)
+        {
+            robot.StartCleanupTeachingWithCallback(() =>
+            {
+                // 정리 완료 - 터치 방지 패널 비활성화
+                if (_cleanupBlockPanel != null)
+                {
+                    _cleanupBlockPanel.SetActive(false);
+                }
+                onComplete?.Invoke();
+            });
+        }
+        else
+        {
+            // 로봇 없으면 바로 실행
+            if (_cleanupBlockPanel != null)
+            {
+                _cleanupBlockPanel.SetActive(false);
+            }
+            onComplete?.Invoke();
+        }
     }
 
     /// <summary>

@@ -1646,4 +1646,287 @@ public class LebaiRobotController : MonoBehaviour
     }
 
     #endregion
+
+    #region 정리 티칭 (버튼 연결용)
+
+    // 정리 티칭 완료 콜백
+    private System.Action _onCleanupComplete;
+
+    /// <summary>
+    /// 정리 티칭 시작 - 버튼의 OnClick에 연결
+    /// robot_cleanup.json 파일을 실행함
+    /// </summary>
+    public void StartCleanupTeaching()
+    {
+        StartCleanupTeachingWithCallback(null);
+    }
+
+    /// <summary>
+    /// 정리 티칭 시작 (콜백 포함) - PuzzleManager에서 호출
+    /// </summary>
+    public void StartCleanupTeachingWithCallback(System.Action onComplete)
+    {
+        _onCleanupComplete = onComplete;
+
+        if (!isConnected)
+        {
+            WriteLog("[CLEANUP] 로봇 연결 안됨 - 정리 티칭 스킵");
+            UpdateStatus("로봇 연결 필요");
+            _onCleanupComplete?.Invoke();
+            return;
+        }
+
+        if (isTeachingRunning)
+        {
+            WriteLog("[CLEANUP] 이미 티칭 실행 중");
+            return;
+        }
+
+        if (isBusy)
+        {
+            WriteLog("[CLEANUP] 로봇 동작 중 - 정리 티칭 스킵");
+            return;
+        }
+
+        WriteLog("[CLEANUP] 정리 티칭 시작 요청");
+        _ = ExecuteCleanupTeaching();
+    }
+
+    /// <summary>
+    /// 정리 티칭 실행 (비동기)
+    /// </summary>
+    private async Task ExecuteCleanupTeaching()
+    {
+        string appPath = Application.dataPath;
+        string baseDir = Application.isEditor
+            ? Directory.GetParent(appPath).FullName
+            : Directory.GetParent(appPath).FullName;
+
+        string filePath = Path.Combine(baseDir, "robot_cleanup.json");
+        WriteLog($"[CLEANUP] 파일 로드 시도: {filePath}");
+
+        if (!File.Exists(filePath))
+        {
+            WriteLog($"[CLEANUP] 파일을 찾을 수 없음: {filePath}");
+            UpdateStatus("robot_cleanup.json 없음");
+            return;
+        }
+
+        try
+        {
+            string json = File.ReadAllText(filePath);
+            TeachingData cleanupData = JsonUtility.FromJson<TeachingData>(json);
+
+            if (cleanupData == null || cleanupData.steps == null || cleanupData.steps.Count == 0)
+            {
+                WriteLog("[CLEANUP] 유효하지 않은 JSON");
+                return;
+            }
+
+            WriteLog($"[CLEANUP] 로드 완료: {cleanupData.name}, 스텝 수: {cleanupData.steps.Count}");
+
+            // 티칭 실행
+            currentTeachingData = cleanupData;
+            SetTeachingUIActive(true);
+            teachingCancellation = new CancellationTokenSource();
+            isTeachingRunning = true;
+
+            await ExecuteTeaching(teachingCancellation.Token);
+
+            WriteLog("[CLEANUP] 정리 티칭 완료");
+        }
+        catch (Exception e)
+        {
+            WriteLog($"[CLEANUP] 오류: {e.Message}");
+        }
+
+        // 완료 콜백 호출
+        _onCleanupComplete?.Invoke();
+        _onCleanupComplete = null;
+    }
+
+    #endregion
+
+    #region 외부 연동 (PuzzleManager용)
+
+    /// <summary>
+    /// 티칭 JSON 파일에서 totalDuration(제한시간) 값을 읽어옴
+    /// </summary>
+    public float GetTeachingDuration()
+    {
+        string filePath = GetTeachingFilePath();
+
+        if (!File.Exists(filePath))
+        {
+            WriteLog($"[TEACHING] GetTeachingDuration: 파일 없음");
+            return -1f;
+        }
+
+        try
+        {
+            string json = File.ReadAllText(filePath);
+            TeachingData data = JsonUtility.FromJson<TeachingData>(json);
+
+            if (data != null && data.totalDuration > 0)
+            {
+                WriteLog($"[TEACHING] GetTeachingDuration: {data.totalDuration}초");
+                return data.totalDuration;
+            }
+        }
+        catch (Exception e)
+        {
+            WriteLog($"[TEACHING] GetTeachingDuration 오류: {e.Message}");
+        }
+
+        return -1f;
+    }
+
+    /// <summary>
+    /// 로봇 연결 여부 확인
+    /// </summary>
+    public bool IsRobotConnected()
+    {
+        return isConnected;
+    }
+
+    /// <summary>
+    /// 외부에서 티칭 시작 (게임 시작 시 호출)
+    /// </summary>
+    /// <param name="onComplete">티칭 완료 시 호출되는 콜백</param>
+    public void StartTeachingExternal(System.Action onComplete = null)
+    {
+        _onTeachingComplete = onComplete;
+
+        if (!isConnected)
+        {
+            WriteLog("[TEACHING] 외부 호출: 로봇 연결 안됨 - 스킵");
+            _onTeachingComplete?.Invoke();
+            return;
+        }
+
+        if (isTeachingRunning)
+        {
+            WriteLog("[TEACHING] 외부 호출: 이미 실행 중");
+            return;
+        }
+
+        WriteLog("[TEACHING] 외부 호출: 게임 시작으로 티칭 시작");
+        StartTeachingWithoutUI();
+    }
+
+    // 티칭 완료 콜백 (게임용)
+    private System.Action _onTeachingComplete;
+
+    /// <summary>
+    /// UI 팝업 없이 티칭 시작 (게임 모드용)
+    /// </summary>
+    private async void StartTeachingWithoutUI()
+    {
+        if (!isConnected)
+        {
+            WriteLog("[TEACHING] StartTeachingWithoutUI: 로봇 연결 안됨");
+            return;
+        }
+
+        if (isTeachingRunning)
+        {
+            WriteLog("[TEACHING] StartTeachingWithoutUI: 이미 실행 중");
+            return;
+        }
+
+        string filePath = GetTeachingFilePath();
+        WriteLog($"[TEACHING] 파일 로드 시도 (UI 없음): {filePath}");
+
+        if (!System.IO.File.Exists(filePath))
+        {
+            WriteLog($"[TEACHING] 파일을 찾을 수 없음: {filePath}");
+            return;
+        }
+
+        try
+        {
+            string json = System.IO.File.ReadAllText(filePath);
+            currentTeachingData = JsonUtility.FromJson<TeachingData>(json);
+
+            if (currentTeachingData == null || currentTeachingData.steps == null || currentTeachingData.steps.Count == 0)
+            {
+                WriteLog("[TEACHING] 유효하지 않은 JSON");
+                return;
+            }
+
+            WriteLog($"[TEACHING] 로드 완료 (UI 없음): {currentTeachingData.name}, 스텝 수: {currentTeachingData.steps.Count}");
+
+            // 티칭 실행 시작 (UI는 활성화하지 않음!)
+            teachingCancellation = new CancellationTokenSource();
+            isTeachingRunning = true;
+
+            await ExecuteTeachingWithoutUI(teachingCancellation.Token);
+        }
+        catch (System.Exception e)
+        {
+            WriteLog($"[TEACHING] JSON 파싱 오류: {e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// UI 없이 티칭 실행 (게임 모드용)
+    /// </summary>
+    private async Task ExecuteTeachingWithoutUI(CancellationToken cancellationToken)
+    {
+        teachingStartTime = Time.time;
+        WriteLog($"[TEACHING] 시작 (UI 없음): {currentTeachingData.name}");
+
+        // 스텝을 시간순으로 정렬
+        currentTeachingData.steps.Sort((a, b) => a.time.CompareTo(b.time));
+
+        foreach (var step in currentTeachingData.steps)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                WriteLog("[TEACHING] 취소됨");
+                break;
+            }
+
+            // 스텝 시작 시간까지 대기
+            float elapsedTime = Time.time - teachingStartTime;
+            float waitTime = step.time - elapsedTime;
+
+            if (waitTime > 0)
+            {
+                await Task.Delay((int)(waitTime * 1000), cancellationToken);
+            }
+
+            if (cancellationToken.IsCancellationRequested) break;
+
+            // 스텝 실행
+            WriteLog($"[TEACHING] 스텝 {step.stepNumber}: {step.name}");
+            await ExecuteTeachingStep(step);
+        }
+
+        if (!cancellationToken.IsCancellationRequested)
+        {
+            float totalTime = Time.time - teachingStartTime;
+            WriteLog($"[TEACHING] 완료! (총 {totalTime:F1}초)");
+
+            // 티칭 완료 콜백 호출 (로봇 승리 처리용)
+            _onTeachingComplete?.Invoke();
+            _onTeachingComplete = null;
+        }
+
+        isTeachingRunning = false;
+    }
+
+    /// <summary>
+    /// 외부에서 티칭 중지 (게임 종료 시 호출)
+    /// </summary>
+    public void StopTeachingExternal()
+    {
+        if (isTeachingRunning)
+        {
+            WriteLog("[TEACHING] 외부 호출: 게임 종료로 티칭 중지");
+            StopTeaching();
+        }
+    }
+
+    #endregion
 }
