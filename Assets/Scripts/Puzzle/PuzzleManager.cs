@@ -16,6 +16,9 @@ public class PuzzleManager : MonoBehaviour
     [SerializeField] private GameObject _puzzleGamePanel;
 
     [Header("타이머 설정")]
+    // true: 로봇 티칭 JSON에서 제한시간 가져오기, false: 인스펙터 값 사용
+    [SerializeField] private bool _useRobotDuration = true;
+
     // 제한 시간 (초)
     [SerializeField] private float _timeLimit = 60f;
 
@@ -141,6 +144,12 @@ public class PuzzleManager : MonoBehaviour
     /// </summary>
     private void UpdateTimeLimitFromRobot()
     {
+        if (!_useRobotDuration)
+        {
+            Debug.Log($"[PuzzleManager] 제한시간 설정: {_timeLimit}초 (인스펙터 값 사용)");
+            return;
+        }
+
         var robot = FindObjectOfType<LebaiRobotController>();
         if (robot != null)
         {
@@ -154,40 +163,16 @@ public class PuzzleManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 로봇 티칭 시작 (완료 시 로봇 승리)
+    /// 로봇 티칭 시작 (타이머와 동기화, 콜백 없음)
     /// </summary>
     private void StartRobotTeaching()
     {
         var robot = FindObjectOfType<LebaiRobotController>();
         if (robot != null)
         {
-            // 로봇 티칭 완료 시 로봇 승리 처리
-            robot.StartTeachingExternal(OnRobotTeachingComplete);
+            // 티칭 시작 (콜백 없음 - 타이머로만 승패 결정)
+            robot.StartTeachingExternal(null);
         }
-    }
-
-    /// <summary>
-    /// 로봇 티칭 완료 시 호출 (로봇 승리!)
-    /// </summary>
-    private void OnRobotTeachingComplete()
-    {
-        // 이미 게임이 끝났으면 무시 (유저가 먼저 이긴 경우)
-        if (_isGameEnded) return;
-
-        Debug.Log("[PuzzleManager] 로봇 티칭 완료 - 로봇 승리!");
-
-        _isGameRunning = false;
-        _isGameEnded = true;
-
-        // 실패 사운드 재생
-        if (SoundManager.Instance != null)
-        {
-            SoundManager.Instance.PlaySFX("Lose");
-        }
-
-        // A + C 활성화 (로봇 승리 = 유저 패배)
-        if (_resultObjectA != null) _resultObjectA.SetActive(true);
-        if (_failObjectC != null) _failObjectC.SetActive(true);
     }
 
     /// <summary>
@@ -459,7 +444,7 @@ public class PuzzleManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 다시하기 버튼 - 퍼즐만 초기화하고 다시 시작
+    /// 다시하기 버튼 - 퍼즐 초기화하고 로봇 티칭과 함께 다시 대결 시작
     /// </summary>
     public void OnRetryButton()
     {
@@ -484,9 +469,40 @@ public class PuzzleManager : MonoBehaviour
             // 퍼즐 초기화
             ResetAllPuzzlePieces();
 
-            // 타이머 초기화 및 게임 시작
-            StartGame();
+            // 타이머 초기화 및 게임 시작 (로봇 티칭과 함께!)
+            StartGameAfterCleanup();
         });
+    }
+
+    /// <summary>
+    /// 게임 시작 (정리 후 다시하기용 - 로봇 티칭과 함께)
+    /// </summary>
+    private void StartGameAfterCleanup()
+    {
+        // 로봇 티칭 JSON에서 제한시간 가져오기
+        UpdateTimeLimitFromRobot();
+
+        _remainingTime = _timeLimit;
+        _placedCount = 0;
+        _isGameRunning = true;
+        _isGameEnded = false;
+
+        // 결과 오브젝트 확실히 비활성화
+        if (_resultObjectA != null) _resultObjectA.SetActive(false);
+        if (_successObjectB != null) _successObjectB.SetActive(false);
+        if (_failObjectC != null) _failObjectC.SetActive(false);
+
+        // 패널 감지 상태 동기화 (Update에서 StartGame 중복 호출 방지)
+        if (_puzzleGamePanel != null)
+        {
+            _wasPanelActive = _puzzleGamePanel.activeInHierarchy;
+        }
+
+        UpdateTimerDisplay();
+
+        // 로봇 티칭 시작 (대결 재시작!)
+        StartRobotTeaching();
+        Debug.Log("[PuzzleManager] 게임 재시작 (로봇 티칭과 함께)");
     }
 
     /// <summary>

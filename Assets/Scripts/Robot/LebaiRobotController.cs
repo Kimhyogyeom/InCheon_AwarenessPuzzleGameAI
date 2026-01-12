@@ -130,6 +130,14 @@ public class LebaiRobotController : MonoBehaviour
     [SerializeField] private Button btnGripperForceLeft;
     [SerializeField] private Button btnGripperForceRight;
 
+    [Header("UI - 버큠 그리퍼")]
+    [SerializeField] private Button btnVacuumOn;
+    [SerializeField] private Button btnVacuumOff;
+    [SerializeField] private TextMeshProUGUI vacuumStatusText;
+    [SerializeField] private string vacuumDevice = "FLANGE";  // FLANGE, ROBOT, EXTRA
+    [SerializeField] private int vacuumPin = 0;  // DO 핀 번호
+    private bool isVacuumOn = false;
+
     [Header("UI - 속도/가속도")]
     [SerializeField] private Slider velocitySlider;
     [SerializeField] private Slider accelerationSlider;
@@ -179,6 +187,7 @@ public class LebaiRobotController : MonoBehaviour
     private CancellationTokenSource teachingCancellation;
     private TeachingData currentTeachingData;
     private float teachingStartTime;
+    private bool isGameModeTeaching = false;  // 게임 모드에서 시작된 티칭인지 여부
 
     // 홈 포지션 이동 상태 (이동 중 슬라이더 이벤트 무시)
     private bool isMovingToHome = false;
@@ -386,6 +395,19 @@ public class LebaiRobotController : MonoBehaviour
             WriteLog("[INIT] stopTeachingButton 연결됨");
         }
 
+        // 버큠 그리퍼 버튼 연결
+        if (btnVacuumOn != null)
+        {
+            btnVacuumOn.onClick.AddListener(VacuumOn);
+            WriteLog("[INIT] btnVacuumOn 연결됨");
+        }
+        if (btnVacuumOff != null)
+        {
+            btnVacuumOff.onClick.AddListener(VacuumOff);
+            WriteLog("[INIT] btnVacuumOff 연결됨");
+        }
+        UpdateVacuumStatus();
+
         UpdateStatus("연결 안됨");
         UpdateAllAngleTexts();
         UpdateGripperTexts();
@@ -484,10 +506,11 @@ public class LebaiRobotController : MonoBehaviour
 
         WriteLog($"[JOINT] J{jointIndex + 1} 버튼: 현재={currentValue:F2}, 이동량={delta:F2} (설정값={jointSettingValue:F2}), 새값={newValue:F2}");
 
+        // 슬라이더 값 변경 시 OnSliderChanged가 호출되어 SendJointMove가 자동으로 실행됨
+        // 버튼 클릭 시에는 스로틀링 없이 즉시 전송하도록 lastSliderSendTime 리셋
+        lastSliderSendTime = 0f;
         sliders[jointIndex].value = newValue;
-
-        // 자동 Send
-        SendJointMove();
+        // 주의: 여기서 SendJointMove()를 다시 호출하면 중복 전송됨
     }
 
     /// <summary>
@@ -782,6 +805,12 @@ public class LebaiRobotController : MonoBehaviour
         }
     }
 
+    [Header("자동 IP 스캔 설정")]
+    [SerializeField] private bool autoScanIP = true;  // IP 자동 스캔 활성화
+    [SerializeField] private string ipPrefix = "192.168.0.";  // IP 대역
+    [SerializeField] private int ipRangeStart = 1;  // 스캔 시작 번호
+    [SerializeField] private int ipRangeEnd = 20;   // 스캔 끝 번호
+
     public async void Connect()
     {
         // 이미 동작 중이면 무시
@@ -789,12 +818,6 @@ public class LebaiRobotController : MonoBehaviour
         {
             WriteLog("[CONNECT] 이미 동작 중 - 무시");
             return;
-        }
-
-        string ip = robotIP;
-        if (ipInputField != null && !string.IsNullOrWhiteSpace(ipInputField.text))
-        {
-            ip = ipInputField.text;
         }
 
         int port = robotPort;
@@ -809,6 +832,36 @@ public class LebaiRobotController : MonoBehaviour
         // Connect용 로딩 인디케이터 활성화
         if (connectLoadingIndicator != null) connectLoadingIndicator.SetActive(true);
 
+        string ip = robotIP;
+
+        // IP 입력이 있으면 그 IP 사용, 없으면 자동 스캔
+        if (ipInputField != null && !string.IsNullOrWhiteSpace(ipInputField.text))
+        {
+            ip = ipInputField.text;
+        }
+        else if (autoScanIP)
+        {
+            // 자동 IP 스캔
+            UpdateStatus("로봇 검색 중...");
+            string foundIP = await ScanForRobot(port);
+            if (foundIP != null)
+            {
+                ip = foundIP;
+                // 찾은 IP를 InputField에 표시
+                if (ipInputField != null)
+                {
+                    ipInputField.text = ip;
+                }
+            }
+            else
+            {
+                WriteLog("[CONNECT] 자동 스캔 실패 - 로봇을 찾을 수 없음");
+                UpdateStatus("로봇을 찾을 수 없음");
+                if (connectLoadingIndicator != null) connectLoadingIndicator.SetActive(false);
+                return;
+            }
+        }
+
         try
         {
             baseUrl = $"http://{ip}:{port}";
@@ -821,6 +874,7 @@ public class LebaiRobotController : MonoBehaviour
             if (response != null && response.Contains("result"))
             {
                 isConnected = true;
+                robotIP = ip;  // 찾은 IP 저장
                 WriteLog($"[CONNECT] 연결 성공: {baseUrl}");
                 UpdateStatus($"연결됨: {ip}:{port}");
 
@@ -1264,6 +1318,78 @@ public class LebaiRobotController : MonoBehaviour
 
     #endregion
 
+    #region IP 자동 스캔
+
+    /// <summary>
+    /// IP 대역을 스캔해서 로봇을 찾음
+    /// </summary>
+    private async Task<string> ScanForRobot(int port)
+    {
+        WriteLog($"[SCAN] IP 스캔 시작: {ipPrefix}{ipRangeStart} ~ {ipPrefix}{ipRangeEnd}");
+
+        // 빠른 스캔을 위한 짧은 타임아웃
+        var scanClient = new HttpClient() { Timeout = TimeSpan.FromSeconds(1) };
+
+        // 병렬로 모든 IP 스캔
+        var tasks = new List<Task<string>>();
+        for (int i = ipRangeStart; i <= ipRangeEnd; i++)
+        {
+            string testIP = $"{ipPrefix}{i}";
+            tasks.Add(TryConnectToIP(scanClient, testIP, port));
+        }
+
+        // 모든 스캔 완료 대기
+        string[] results = await Task.WhenAll(tasks);
+
+        // 성공한 IP 찾기
+        foreach (string result in results)
+        {
+            if (result != null)
+            {
+                WriteLog($"[SCAN] 로봇 발견: {result}");
+                scanClient.Dispose();
+                return result;
+            }
+        }
+
+        scanClient.Dispose();
+        WriteLog("[SCAN] 로봇을 찾지 못함");
+        return null;
+    }
+
+    /// <summary>
+    /// 특정 IP에 로봇이 있는지 확인
+    /// </summary>
+    private async Task<string> TryConnectToIP(HttpClient client, string ip, int port)
+    {
+        try
+        {
+            string url = $"http://{ip}:{port}";
+            string jsonBody = $"{{\"jsonrpc\":\"2.0\",\"method\":\"get_robot_state\",\"params\":[{{}}],\"id\":1}}";
+
+            var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+            HttpResponseMessage response = await client.PostAsync(url, content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string responseBody = await response.Content.ReadAsStringAsync();
+                if (responseBody.Contains("result"))
+                {
+                    WriteLog($"[SCAN] {ip} - 로봇 응답 확인");
+                    return ip;
+                }
+            }
+        }
+        catch
+        {
+            // 연결 실패 - 무시
+        }
+
+        return null;
+    }
+
+    #endregion
+
     private static readonly HttpClient httpClient = new HttpClient() { Timeout = TimeSpan.FromSeconds(10) };
 
     private async Task<string> SendJsonRpc(string method, string paramsJson)
@@ -1449,15 +1575,17 @@ public class LebaiRobotController : MonoBehaviour
 
         WriteLog("[TEACHING] 사용자가 티칭 중지 요청");
         teachingCancellation?.Cancel();
-        isTeachingRunning = false;
 
         // 로봇 정지
         StopRobot();
 
         UpdateTeachingStatus("사용자가 중지함");
 
-        // 티칭 UI 비활성화
-        SetTeachingUIActive(false);
+        // 티칭 UI 비활성화 (게임 모드에서는 controlPanel에 영향 주지 않음)
+        SetTeachingUIActive(false, affectControlPanel: !isGameModeTeaching);
+
+        isTeachingRunning = false;
+        isGameModeTeaching = false;  // 플래그 리셋
     }
 
     /// <summary>
@@ -1647,6 +1775,80 @@ public class LebaiRobotController : MonoBehaviour
 
     #endregion
 
+    #region 버큠 그리퍼 제어
+
+    /// <summary>
+    /// 버큠 ON
+    /// </summary>
+    public async void VacuumOn()
+    {
+        if (!isConnected)
+        {
+            WriteLog("[VACUUM] 로봇 연결 안됨");
+            return;
+        }
+
+        WriteLog($"[VACUUM] ON 요청 - Device: {vacuumDevice}, Pin: {vacuumPin}");
+        string paramsJson = $"[{{\"device\": \"{vacuumDevice.ToUpper()}\", \"pin\": {vacuumPin}, \"value\": 1}}]";
+
+        string response = await SendJsonRpc("set_do", paramsJson);
+
+        if (response != null && response.Contains("result"))
+        {
+            isVacuumOn = true;
+            WriteLog("[VACUUM] ON 성공");
+        }
+        else
+        {
+            WriteLog($"[VACUUM] ON 실패: {response}");
+        }
+
+        UpdateVacuumStatus();
+    }
+
+    /// <summary>
+    /// 버큠 OFF
+    /// </summary>
+    public async void VacuumOff()
+    {
+        if (!isConnected)
+        {
+            WriteLog("[VACUUM] 로봇 연결 안됨");
+            return;
+        }
+
+        WriteLog($"[VACUUM] OFF 요청 - Device: {vacuumDevice}, Pin: {vacuumPin}");
+        string paramsJson = $"[{{\"device\": \"{vacuumDevice.ToUpper()}\", \"pin\": {vacuumPin}, \"value\": 0}}]";
+
+        string response = await SendJsonRpc("set_do", paramsJson);
+
+        if (response != null && response.Contains("result"))
+        {
+            isVacuumOn = false;
+            WriteLog("[VACUUM] OFF 성공");
+        }
+        else
+        {
+            WriteLog($"[VACUUM] OFF 실패: {response}");
+        }
+
+        UpdateVacuumStatus();
+    }
+
+    /// <summary>
+    /// 버큠 상태 텍스트 업데이트
+    /// </summary>
+    private void UpdateVacuumStatus()
+    {
+        if (vacuumStatusText != null)
+        {
+            vacuumStatusText.text = isVacuumOn ? "ON" : "OFF";
+            vacuumStatusText.color = isVacuumOn ? Color.green : Color.gray;
+        }
+    }
+
+    #endregion
+
     #region 정리 티칭 (버튼 연결용)
 
     // 정리 티칭 완료 콜백
@@ -1693,7 +1895,7 @@ public class LebaiRobotController : MonoBehaviour
     }
 
     /// <summary>
-    /// 정리 티칭 실행 (비동기)
+    /// 정리 티칭 실행 (비동기) - UI 없이 실행
     /// </summary>
     private async Task ExecuteCleanupTeaching()
     {
@@ -1709,6 +1911,8 @@ public class LebaiRobotController : MonoBehaviour
         {
             WriteLog($"[CLEANUP] 파일을 찾을 수 없음: {filePath}");
             UpdateStatus("robot_cleanup.json 없음");
+            _onCleanupComplete?.Invoke();
+            _onCleanupComplete = null;
             return;
         }
 
@@ -1720,24 +1924,29 @@ public class LebaiRobotController : MonoBehaviour
             if (cleanupData == null || cleanupData.steps == null || cleanupData.steps.Count == 0)
             {
                 WriteLog("[CLEANUP] 유효하지 않은 JSON");
+                _onCleanupComplete?.Invoke();
+                _onCleanupComplete = null;
                 return;
             }
 
             WriteLog($"[CLEANUP] 로드 완료: {cleanupData.name}, 스텝 수: {cleanupData.steps.Count}");
 
-            // 티칭 실행
+            // 게임 모드 플래그 설정 (UI 영향 방지)
+            isGameModeTeaching = true;
+
+            // 티칭 실행 (UI 없이)
             currentTeachingData = cleanupData;
-            SetTeachingUIActive(true);
             teachingCancellation = new CancellationTokenSource();
             isTeachingRunning = true;
 
-            await ExecuteTeaching(teachingCancellation.Token);
+            await ExecuteTeachingWithoutUI(teachingCancellation.Token);
 
             WriteLog("[CLEANUP] 정리 티칭 완료");
         }
         catch (Exception e)
         {
             WriteLog($"[CLEANUP] 오류: {e.Message}");
+            isGameModeTeaching = false;
         }
 
         // 완료 콜백 호출
@@ -1750,7 +1959,8 @@ public class LebaiRobotController : MonoBehaviour
     #region 외부 연동 (PuzzleManager용)
 
     /// <summary>
-    /// 티칭 JSON 파일에서 totalDuration(제한시간) 값을 읽어옴
+    /// 티칭 JSON 파일에서 실제 티칭 종료 시간을 계산하여 반환
+    /// (마지막 스텝의 time + duration)
     /// </summary>
     public float GetTeachingDuration()
     {
@@ -1767,10 +1977,21 @@ public class LebaiRobotController : MonoBehaviour
             string json = File.ReadAllText(filePath);
             TeachingData data = JsonUtility.FromJson<TeachingData>(json);
 
-            if (data != null && data.totalDuration > 0)
+            if (data != null && data.steps != null && data.steps.Count > 0)
             {
-                WriteLog($"[TEACHING] GetTeachingDuration: {data.totalDuration}초");
-                return data.totalDuration;
+                // 실제 마지막 스텝 종료 시간 계산
+                float actualEndTime = 0f;
+                foreach (var step in data.steps)
+                {
+                    float stepEndTime = step.time + step.duration;
+                    if (stepEndTime > actualEndTime)
+                    {
+                        actualEndTime = stepEndTime;
+                    }
+                }
+
+                WriteLog($"[TEACHING] GetTeachingDuration: 실제 종료 시간 = {actualEndTime}초 (totalDuration: {data.totalDuration}초)");
+                return actualEndTime;
             }
         }
         catch (Exception e)
@@ -1833,6 +2054,9 @@ public class LebaiRobotController : MonoBehaviour
             WriteLog("[TEACHING] StartTeachingWithoutUI: 이미 실행 중");
             return;
         }
+
+        // 게임 모드 플래그 설정 (UI 영향 방지)
+        isGameModeTeaching = true;
 
         string filePath = GetTeachingFilePath();
         WriteLog($"[TEACHING] 파일 로드 시도 (UI 없음): {filePath}");
@@ -1914,6 +2138,7 @@ public class LebaiRobotController : MonoBehaviour
         }
 
         isTeachingRunning = false;
+        isGameModeTeaching = false;  // 플래그 리셋
     }
 
     /// <summary>
