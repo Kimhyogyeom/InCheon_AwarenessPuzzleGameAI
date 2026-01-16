@@ -1,18 +1,14 @@
-[2026-01-12 13:49:29.237] === Lebai Robot Controller 시작 (HTTP JSON-RPC) ===
-[2026-01-12 13:49:29.245] [INIT] btnGripperPosLeft 연결됨: ButtonLeft
-[2026-01-12 13:49:29.246] [INIT] btnGripperPosRight 연결됨: ButtonRight
-[2026-01-12 13:49:29.246] [INIT] btnGripperForceLeft 연결됨: ButtonLeft
-[2026-01-12 13:49:29.247] [INIT] btnGripperForceRight 연결됨: ButtonRight
-[2026-01-12 13:49:29.247] [INIT] gripperPositionSlider 연결됨: SliderPosition
-[2026-01-12 13:49:29.248] [INIT] gripperForceSlider 연결됨: SliderForce
-[2026-01-12 13:49:29.249] [INIT] teachingButton 연결됨
-[2026-01-12 13:49:29.249] [INIT] stopTeachingButton 연결됨
-[2026-01-12 13:49:29.249] [INIT] btnVacuumOn 연결됨
-[2026-01-12 13:49:29.249] [INIT] btnVacuumOff 연결됨
-[2026-01-12 13:49:29.252] [STATUS] 연결 안됨
-[2026-01-12 13:49:29.252] [TEACHING] 대기 중
-[2026-01-12 13:49:34.016] [TEACHING] 외부 호출: 로봇 연결 안됨 - 스킵
-[2026-01-12 13:50:07.775] [CLEANUP] 로봇 연결 안됨 - 정리 티칭 스킵
-[2026-01-12 13:50:07.776] [STATUS] 로봇 연결 필요
-[2026-01-12 13:50:07.778] [TEACHING] 외부 호출: 로봇 연결 안됨 - 스킵
-[2026-01-12 13:50:09.528] === Lebai Robot Controller 종료 ===
+[2026-01-16 17:51:49.766] === Lebai Robot Controller 시작 (HTTP JSON-RPC) ===
+[2026-01-16 17:51:49.785] [INIT] btnGripperPosLeft 연결됨: ButtonLeft
+[2026-01-16 17:51:49.786] [INIT] btnGripperPosRight 연결됨: ButtonRight
+[2026-01-16 17:51:49.787] [INIT] btnGripperForceLeft 연결됨: ButtonLeft
+[2026-01-16 17:51:49.787] [INIT] btnGripperForceRight 연결됨: ButtonRight
+[2026-01-16 17:51:49.788] [INIT] gripperPositionSlider 연결됨: SliderPosition
+[2026-01-16 17:51:49.790] [INIT] gripperForceSlider 연결됨: SliderForce
+[2026-01-16 17:51:49.790] [INIT] teachingButton 연결됨
+[2026-01-16 17:51:49.791] [INIT] stopTeachingButton 연결됨
+[2026-01-16 17:51:49.792] [INIT] btnVacuumOn 연결됨
+[2026-01-16 17:51:49.792] [INIT] btnVacuumOff 연결됨
+[2026-01-16 17:51:49.796] [STATUS] 연결 안됨
+[2026-01-16 17:51:49.797] [TEACHING] 대기 중
+[2026-01-16 17:51:52.781] === Lebai Robot Controller 종료 ===
