@@ -1,12 +1,11 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.InputSystem;
 
 /// <summary>
 /// 퍼즐 조각 드래그 처리
 /// 누르고 있는 동안 들고, 떼면 내려놓거나 슬롯에 배치
 /// </summary>
-public class PuzzlePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
+public class PuzzlePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IDragHandler
 {
     [Header("퍼즐 설정")]
     // 이 퍼즐의 인덱스 (0~24)
@@ -54,6 +53,9 @@ public class PuzzlePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     // 잠금 여부 (슬롯에 배치되면 잠금)
     private bool _isLocked = false;
 
+    // 현재 포인터 위치 (마우스/터치 공용)
+    private Vector2 _currentPointerPosition;
+
     // 목표 스케일, 회전
     private Vector3 _targetScale;
     private Quaternion _targetRotation;
@@ -83,10 +85,10 @@ public class PuzzlePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
         // 부드러운 회전 전환
         transform.localRotation = Quaternion.Lerp(transform.localRotation, _targetRotation, Time.deltaTime * _smoothSpeed);
 
-        // 들고 있으면 마우스 따라가기
+        // 들고 있으면 포인터 따라가기
         if (_isPickedUp)
         {
-            FollowMouse();
+            FollowPointer();
         }
     }
 
@@ -96,7 +98,17 @@ public class PuzzlePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     public void OnPointerDown(PointerEventData eventData)
     {
         if (_isLocked) return;
+        _currentPointerPosition = eventData.position;
         PickUp();
+    }
+
+    /// <summary>
+    /// 드래그 중 - 포인터 위치 업데이트 (마우스/터치 공용)
+    /// </summary>
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (_isLocked || !_isPickedUp) return;
+        _currentPointerPosition = eventData.position;
     }
 
     /// <summary>
@@ -105,6 +117,7 @@ public class PuzzlePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     public void OnPointerUp(PointerEventData eventData)
     {
         if (_isLocked) return;
+        _currentPointerPosition = eventData.position;
         Drop();
     }
 
@@ -193,8 +206,6 @@ public class PuzzlePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
         PuzzleSlot nearest = null;
         float nearestDistance = _snapDistance;
 
-        Vector2 mousePosition = Mouse.current.position.ReadValue();
-
         foreach (PuzzleSlot slot in slots)
         {
             if (slot.IsFilled()) continue;
@@ -203,7 +214,7 @@ public class PuzzlePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
             RectTransform slotRect = slot.GetComponent<RectTransform>();
             Vector2 slotScreenPos = RectTransformUtility.WorldToScreenPoint(_canvasCamera, slotRect.position);
 
-            float distance = Vector2.Distance(mousePosition, slotScreenPos);
+            float distance = Vector2.Distance(_currentPointerPosition, slotScreenPos);
 
             if (distance < nearestDistance)
             {
@@ -216,16 +227,14 @@ public class PuzzlePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     }
 
     /// <summary>
-    /// 마우스 따라가기
+    /// 포인터 따라가기 (마우스/터치 공용)
     /// </summary>
-    private void FollowMouse()
+    private void FollowPointer()
     {
-        Vector2 mousePosition = Mouse.current.position.ReadValue();
-
         Vector2 localPoint;
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
             _originalParent as RectTransform,
-            mousePosition,
+            _currentPointerPosition,
             _canvasCamera,
             out localPoint
         );

@@ -1,0 +1,190 @@
+{
+  "name": "티칭 4 리버스 - 퍼즐 되돌리기",
+  "description": "플레이스 위치에서 픽업하여 원래 위치로 되돌리기",
+  "totalDuration": 20.0,
+  "steps": [
+    {
+      "stepNumber": 1,
+      "name": "시작 - J2를 -45도로 리프트",
+      "time": 0.0,
+      "duration": 1.0,
+      "action": {
+        "type": "move_joint",
+        "joints": [0, -45, 0, 0, 0, 0],
+        "velocity": 3.0,
+        "acceleration": 5.0
+      }
+    },
+    {
+      "stepNumber": 2,
+      "name": "플레이스 위치로 동시 이동 (J2=-46.5 유지)",
+      "time": 1.0,
+      "duration": 1.5,
+      "action": {
+        "type": "move_joint",
+        "joints": [121.3, -46.5, 91.9, -37.12, -21.1, -10],
+        "velocity": 3.0,
+        "acceleration": 5.0
+      }
+    },
+    {
+      "stepNumber": 3,
+      "name": "대기 (1초) - 로봇 안정화",
+      "time": 2.5,
+      "duration": 1.0,
+      "action": {
+        "type": "wait"
+      }
+    },
+    {
+      "stepNumber": 4,
+      "name": "J2 하강 (플레이스 위치에서 픽업)",
+      "time": 3.5,
+      "duration": 0.8,
+      "action": {
+        "type": "move_joint",
+        "joints": [121.3, -41.5, 91.9, -37.12, -21.1, -10],
+        "velocity": 3.0,
+        "acceleration": 5.0
+      }
+    },
+    {
+      "stepNumber": 5,
+      "name": "대기 (3초) - 퍼즐 맞춤",
+      "time": 4.3,
+      "duration": 3.0,
+      "action": {
+        "type": "wait"
+      }
+    },
+    {
+      "stepNumber": 6,
+      "name": "버큠 ON - 진공펌프",
+      "time": 7.3,
+      "duration": 0.1,
+      "action": {
+        "type": "set_do",
+        "pin": 1,
+        "value": 1
+      }
+    },
+    {
+      "stepNumber": 7,
+      "name": "버큠 ON - 밸브",
+      "time": 7.4,
+      "duration": 0.1,
+      "action": {
+        "type": "set_do",
+        "pin": 0,
+        "value": 0
+      }
+    },
+    {
+      "stepNumber": 8,
+      "name": "J2 리프트 (-46.5도)",
+      "time": 8.5,
+      "duration": 0.8,
+      "action": {
+        "type": "move_joint",
+        "joints": [121.3, -46.5, 91.9, -37.12, -21.1, -10],
+        "velocity": 3.0,
+        "acceleration": 5.0
+      }
+    },
+    {
+      "stepNumber": 9,
+      "name": "원래 픽업 위치로 동시 이동 (J2=-36.9 유지)",
+      "time": 9.3,
+      "duration": 1.5,
+      "action": {
+        "type": "move_joint",
+        "joints": [52.03, -37.2, 62.4, -32.12, 0, 0],
+        "velocity": 3.0,
+        "acceleration": 5.0
+      }
+    },
+    {
+      "stepNumber": 10,
+      "name": "대기 (1초) - 로봇 안정화",
+      "time": 11.8,
+      "duration": 1.0,
+      "action": {
+        "type": "wait"
+      }
+    },
+    {
+      "stepNumber": 11,
+      "name": "J2 하강 (원래 픽업 위치에 내려놓기)",
+      "time": 11.8,
+      "duration": 0.8,
+      "action": {
+        "type": "move_joint",
+        "joints": [52.03, -32.2, 62.4, -32.12, 0, 0],
+        "velocity": 3.0,
+        "acceleration": 5.0
+      }
+    },
+    {
+      "stepNumber": 12,
+      "name": "대기 (3초) - 퍼즐 맞춤",
+      "time": 12.6,
+      "duration": 3.0,
+      "action": {
+        "type": "wait"
+      }
+    },
+    {
+      "stepNumber": 13,
+      "name": "블로우 - 진공펌프 ON",
+      "time": 15.6,
+      "duration": 0.1,
+      "action": {
+        "type": "set_do",
+        "pin": 1,
+        "value": 1
+      }
+    },
+    {
+      "stepNumber": 14,
+      "name": "블로우 - 밸브 ON",
+      "time": 15.7,
+      "duration": 0.1,
+      "action": {
+        "type": "set_do",
+        "pin": 0,
+        "value": 1
+      }
+    },
+    {
+      "stepNumber": 15,
+      "name": "버큠 OFF - 진공펌프",
+      "time": 15.8,
+      "duration": 0.1,
+      "action": {
+        "type": "set_do",
+        "pin": 1,
+        "value": 0
+      }
+    },
+    {
+      "stepNumber": 16,
+      "name": "버큠 OFF - 밸브",
+      "time": 15.9,
+      "duration": 0.1,
+      "action": {
+        "type": "set_do",
+        "pin": 0,
+        "value": 0
+      }
+    },
+    {
+      "stepNumber": 17,
+      "name": "완료",
+      "time": 16.0,
+      "duration": 0.5,
+      "action": {
+        "type": "wait"
+      }
+    }
+  ]
+}

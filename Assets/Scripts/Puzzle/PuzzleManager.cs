@@ -81,6 +81,7 @@ public class PuzzleManager : MonoBehaviour
     // 패널 활성화 감지용
     private bool _wasPanelActive = false;
 
+
     void Awake()
     {
         // 패널 초기 상태 저장 (Awake에서 먼저 체크)
@@ -157,33 +158,46 @@ public class PuzzleManager : MonoBehaviour
             if (duration > 0)
             {
                 _timeLimit = duration;
-                Debug.Log($"[PuzzleManager] 제한시간 설정: {_timeLimit}초 (robot_teaching.json)");
+                Debug.Log($"[PuzzleManager] 제한시간 설정: {_timeLimit}초 (티칭 1~16 합산)");
             }
         }
     }
 
     /// <summary>
-    /// 로봇 티칭 시작 (타이머와 동기화, 콜백 없음)
+    /// 로봇 티칭 시작 - 게임 모드 (리버스 1~16 순차 실행)
     /// </summary>
     private void StartRobotTeaching()
     {
         var robot = FindObjectOfType<LebaiRobotController>();
         if (robot != null)
         {
-            // 티칭 시작 (콜백 없음 - 타이머로만 승패 결정)
-            robot.StartTeachingExternal(null);
+            // 게임 모드 리버스 1~16 순차 실행 (완료 시 로봇 승리)
+            robot.StartGameTeachings(OnRobotTeachingComplete);
         }
     }
 
     /// <summary>
-    /// 로봇 티칭 중지
+    /// 로봇이 리버스 1~16을 모두 완료했을 때 호출 (= 로봇 승리)
+    /// </summary>
+    private void OnRobotTeachingComplete()
+    {
+        if (_isGameEnded) return;
+
+        // 로봇이 마지막 퍼즐까지 놓았으므로 타이머를 0으로 맞추고 게임 종료
+        _remainingTime = 0f;
+        UpdateTimerDisplay();
+        OnTimeUp();
+    }
+
+    /// <summary>
+    /// 로봇 티칭 중지 (현재 진행 중인 티칭 완료 후 중지)
     /// </summary>
     private void StopRobotTeaching()
     {
         var robot = FindObjectOfType<LebaiRobotController>();
         if (robot != null)
         {
-            robot.StopTeachingExternal();
+            robot.StopGameTeachingsGraceful();
         }
     }
 
@@ -205,16 +219,10 @@ public class PuzzleManager : MonoBehaviour
 
         if (!_isGameRunning || _isGameEnded) return;
 
-        // 타이머 감소
+        // 타이머 감소 (대략적 표시용 - 로봇 완료 콜백이 실제 게임을 끝냄)
         _remainingTime -= Time.deltaTime;
+        if (_remainingTime < 0f) _remainingTime = 0f;
         UpdateTimerDisplay();
-
-        // 시간 초과 체크
-        if (_remainingTime <= 0f)
-        {
-            _remainingTime = 0f;
-            OnTimeUp();
-        }
     }
 
     /// <summary>
@@ -416,9 +424,6 @@ public class PuzzleManager : MonoBehaviour
             _remainingTime = _timeLimit;
             _placedCount = 0;
 
-            // 패널 감지 상태 초기화 (다시 활성화될 때 타이머 시작하도록)
-            _wasPanelActive = false;
-
             // 결과 오브젝트 비활성화
             if (_resultObjectA != null) _resultObjectA.SetActive(false);
             if (_successObjectB != null) _successObjectB.SetActive(false);
@@ -440,6 +445,12 @@ public class PuzzleManager : MonoBehaviour
             }
 
             UpdateTimerDisplay();
+
+            // 패널 감지 상태를 현재 상태와 동기화 (Update에서 StartGame 중복 호출 방지)
+            if (_puzzleGamePanel != null)
+            {
+                _wasPanelActive = _puzzleGamePanel.activeInHierarchy;
+            }
         });
     }
 
@@ -519,7 +530,8 @@ public class PuzzleManager : MonoBehaviour
         var robot = FindObjectOfType<LebaiRobotController>();
         if (robot != null)
         {
-            robot.StartCleanupTeachingWithCallback(() =>
+            // 완료된 티칭만 리버스 정리 (1~N번)
+            robot.StartGameCleanup(() =>
             {
                 // 정리 완료 - 터치 방지 패널 비활성화
                 if (_cleanupBlockPanel != null)

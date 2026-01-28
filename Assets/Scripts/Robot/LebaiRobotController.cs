@@ -151,6 +151,41 @@ public class LebaiRobotController : MonoBehaviour
     [Header("UI - 티칭 시스템")]
     [SerializeField] private Button teachingButton;  // 티칭 시작 버튼
     [SerializeField] private Button stopTeachingButton;  // 티칭 중지 버튼
+    [SerializeField] private Button teaching1Button;  // 티칭 1 버튼
+    [SerializeField] private Button teaching1ReverseButton;  // 티칭 1 리버스 버튼
+    [SerializeField] private Button teaching2Button;  // 티칭 2 버튼
+    [SerializeField] private Button teaching2ReverseButton;  // 티칭 2 리버스 버튼
+    [SerializeField] private Button teaching3Button;  // 티칭 3 버튼
+    [SerializeField] private Button teaching3ReverseButton;  // 티칭 3 리버스 버튼
+    [SerializeField] private Button teaching4Button;  // 티칭 4 버튼
+    [SerializeField] private Button teaching4ReverseButton;  // 티칭 4 리버스 버튼
+    [SerializeField] private Button teaching5Button;  // 티칭 5 버튼
+    [SerializeField] private Button teaching5ReverseButton;  // 티칭 5 리버스 버튼
+    [SerializeField] private Button teaching6Button;  // 티칭 6 버튼
+    [SerializeField] private Button teaching6ReverseButton;  // 티칭 6 리버스 버튼
+    [SerializeField] private Button teaching7Button;  // 티칭 7 버튼
+    [SerializeField] private Button teaching7ReverseButton;  // 티칭 7 리버스 버튼
+    [SerializeField] private Button teaching8Button;  // 티칭 8 버튼
+    [SerializeField] private Button teaching8ReverseButton;  // 티칭 8 리버스 버튼
+    [SerializeField] private Button teaching9Button;  // 티칭 9 버튼
+    [SerializeField] private Button teaching9ReverseButton;  // 티칭 9 리버스 버튼
+    [SerializeField] private Button teaching10Button;  // 티칭 10 버튼
+    [SerializeField] private Button teaching10ReverseButton;  // 티칭 10 리버스 버튼
+    [SerializeField] private Button teaching11Button;  // 티칭 11 버튼
+    [SerializeField] private Button teaching11ReverseButton;  // 티칭 11 리버스 버튼
+    [SerializeField] private Button teaching12Button;  // 티칭 12 버튼
+    [SerializeField] private Button teaching12ReverseButton;  // 티칭 12 리버스 버튼
+    [SerializeField] private Button teaching13Button;  // 티칭 13 버튼
+    [SerializeField] private Button teaching13ReverseButton;  // 티칭 13 리버스 버튼
+    [SerializeField] private Button teaching14Button;  // 티칭 14 버튼
+    [SerializeField] private Button teaching14ReverseButton;  // 티칭 14 리버스 버튼
+    [SerializeField] private Button teaching15Button;  // 티칭 15 버튼
+    [SerializeField] private Button teaching15ReverseButton;  // 티칭 15 리버스 버튼
+    [SerializeField] private Button teaching16Button;  // 티칭 16 버튼
+    [SerializeField] private Button teaching16ReverseButton;  // 티칭 16 리버스 버튼
+    [SerializeField] private Button allTeachingsButton;  // 티칭 1~16 전체 실행 버튼
+    [SerializeField] private Button allReverseTeachingsButton;  // 리버스 1~16 전체 실행 버튼
+    [SerializeField] private Button teachingLoopButton;  // 티칭↔리버스 반복 버튼
     [SerializeField] private TextMeshProUGUI teachingStatusText;  // 티칭 상태 표시
     [SerializeField] private string teachingFileName = "robot_teaching.json";  // JSON 파일 이름
     [SerializeField] private GameObject teachingActiveIndicator;  // 티칭 중 활성화되는 오브젝트
@@ -160,7 +195,7 @@ public class LebaiRobotController : MonoBehaviour
     [SerializeField] private float homeMoveTime = 5f;  // 홈 포지션 이동 시간 (초)
     [SerializeField] private bool autoHomeOnConnect = true;  // 연결 시 자동으로 홈 포지션 이동
 
-    private const float JOINT_LIMIT_DEG = 175f;
+    private const float JOINT_LIMIT_DEG = 200f;
 
     private float velocity = 0.5f;
     private float acceleration = 1.0f;
@@ -188,6 +223,9 @@ public class LebaiRobotController : MonoBehaviour
     private TeachingData currentTeachingData;
     private float teachingStartTime;
     private bool isGameModeTeaching = false;  // 게임 모드에서 시작된 티칭인지 여부
+    private int lastCompletedTeachingNumber = 0;  // 마지막으로 완료된 티칭 번호 (게임 모드용)
+    private bool stopAfterCurrentTeaching = false;  // 현재 티칭 완료 후 중지 플래그
+    private float allTeachingsStartTime = 0f;  // 전체 티칭 시작 시간
 
     // 홈 포지션 이동 상태 (이동 중 슬라이더 이벤트 무시)
     private bool isMovingToHome = false;
@@ -416,6 +454,10 @@ public class LebaiRobotController : MonoBehaviour
 
         // 티칭 UI 초기 상태: 비활성화 (controlPanel 상태는 유지)
         SetTeachingUIActive(false, affectControlPanel: false);
+
+        // 자동 연결 시도
+        WriteLog("[INIT] 자동 연결 시도...");
+        Connect();
     }
 
     // 조인트 슬라이더 스로틀링
@@ -1245,6 +1287,13 @@ public class LebaiRobotController : MonoBehaviour
             return;
         }
 
+        // 티칭 실행 중이면 무시 (게임 중 홈 이동 방지)
+        if (isTeachingRunning)
+        {
+            WriteLog("[HOME] 티칭 실행 중 - 홈 이동 스킵");
+            return;
+        }
+
         // 이미 동작 중이면 무시
         if (isBusy)
         {
@@ -1258,29 +1307,38 @@ public class LebaiRobotController : MonoBehaviour
 
         try
         {
-            WriteLog($"[HOME] 홈 포지션으로 이동 시작: [{string.Join(", ", homePosition)}]");
+            WriteLog($"[HOME] 홈 포지션으로 이동 시작 (순차 이동: J2 > J6 > J5 > J4 > J3 > J1 > J2)");
             UpdateStatus("홈 포지션 이동 중...");
 
-            // 도 단위를 라디안으로 변환
             var culture = System.Globalization.CultureInfo.InvariantCulture;
-            double[] anglesRad = new double[6];
-            for (int i = 0; i < 6 && i < homePosition.Length; i++)
-            {
-                anglesRad[i] = homePosition[i] * Mathf.Deg2Rad;
-            }
-
-            string jointArray = string.Format(culture, "[{0:F6}, {1:F6}, {2:F6}, {3:F6}, {4:F6}, {5:F6}]",
-                anglesRad[0], anglesRad[1], anglesRad[2], anglesRad[3], anglesRad[4], anglesRad[5]);
-
             string vStr = velocity.ToString("F2", culture);
             string aStr = acceleration.ToString("F2", culture);
-            string tStr = homeMoveTime.ToString("F2", culture);
 
-            // move_joint with t parameter (시간 기반 이동)
-            string paramsJson = $"[{{\"pose\": {{\"kind\": 1, \"joint\": {{\"joint\": {jointArray}}}}}, \"param\": {{\"velocity\": {vStr}, \"acc\": {aStr}, \"t\": {tStr}}}}}]";
+            // 현재 각도 (정확하지 않을 수 있으므로 현재 슬라이더 값 사용)
+            float[] currentAngles = new float[6];
+            for (int i = 0; i < 6; i++)
+            {
+                currentAngles[i] = (sliders[i] != null) ? sliders[i].value : 0;
+            }
 
-            WriteLog($"[HOME] move_joint 전송 (t={tStr}초): {paramsJson}");
-            await SendJsonRpc("move_joint", paramsJson);
+            // STEP 1: J2축을 -45도로 먼저 올려서 충돌 방지
+            WriteLog("[HOME] 1단계: J2축을 -45도로 상승");
+            currentAngles[1] = -45;
+            await MoveJointToAngles(currentAngles, vStr, aStr, "1.5");
+
+            // STEP 2: J2=-45 유지하면서 나머지 축 동시에 0도로 이동
+            WriteLog("[HOME] 2단계: 나머지 축 동시에 0도로 이동");
+            currentAngles[0] = 0;  // J1
+            currentAngles[2] = 0;  // J3
+            currentAngles[3] = 0;  // J4
+            currentAngles[4] = 0;  // J5
+            currentAngles[5] = 0;  // J6
+            await MoveJointToAngles(currentAngles, vStr, aStr, "2.0");
+
+            // STEP 3: 마지막으로 J2를 0도로 하강
+            WriteLog("[HOME] 3단계: J2를 0도로 하강");
+            currentAngles[1] = 0;
+            await MoveJointToAngles(currentAngles, vStr, aStr, "1.5");
 
             // UI 슬라이더 업데이트 (이벤트 발생하지만 isMovingToHome이 true라 무시됨)
             for (int i = 0; i < 6 && i < sliders.Length && i < homePosition.Length; i++)
@@ -1314,6 +1372,37 @@ public class LebaiRobotController : MonoBehaviour
             isMovingToHome = false;
             SetBusy(false);
         }
+    }
+
+    /// <summary>
+    /// Helper 함수: 지정된 각도로 로봇 이동 (WaitUntilRobotIdle 포함)
+    /// </summary>
+    private async Task MoveJointToAngles(float[] angles, string vStr, string aStr, string tStr)
+    {
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        double[] anglesRad = new double[6];
+        for (int i = 0; i < 6; i++)
+        {
+            anglesRad[i] = angles[i] * Mathf.Deg2Rad;
+        }
+
+        string jointArray = string.Format(culture, "[{0:F6}, {1:F6}, {2:F6}, {3:F6}, {4:F6}, {5:F6}]",
+            anglesRad[0], anglesRad[1], anglesRad[2], anglesRad[3], anglesRad[4], anglesRad[5]);
+
+        string paramsJson = $"[{{\"pose\": {{\"kind\": 1, \"joint\": {{\"joint\": {jointArray}}}}}, \"param\": {{\"velocity\": {vStr}, \"acc\": {aStr}, \"t\": {tStr}}}}}]";
+
+        await SendJsonRpc("move_joint", paramsJson);
+        await WaitUntilRobotIdle();
+
+        // UI 슬라이더 업데이트
+        for (int i = 0; i < 6 && i < sliders.Length; i++)
+        {
+            if (sliders[i] != null)
+            {
+                sliders[i].value = angles[i];
+            }
+        }
+        UpdateAllAngleTexts();
     }
 
     #endregion
@@ -1567,6 +1656,596 @@ public class LebaiRobotController : MonoBehaviour
     }
 
     /// <summary>
+    /// 티칭 1 버튼 클릭 (robot_teaching_1.json 실행)
+    /// </summary>
+    public void StartTeaching1()
+    {
+        StartTeachingByNumber(1);
+    }
+
+    /// <summary>
+    /// 티칭 1 리버스 버튼 클릭 (robot_teaching_1_reverse.json 실행)
+    /// 플레이스 위치에서 픽업하여 원래 위치로 되돌리기
+    /// </summary>
+    public void StartTeaching1Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_1_reverse.json");
+    }
+
+    /// <summary>
+    /// 티칭 2 버튼 클릭 (robot_teaching_2.json 실행)
+    /// </summary>
+    public void StartTeaching2()
+    {
+        StartTeachingByFileName("robot_teaching_2.json");
+    }
+
+    /// <summary>
+    /// 티칭 2 리버스 버튼 클릭 (robot_teaching_2_reverse.json 실행)
+    /// 플레이스 위치에서 픽업하여 원래 위치로 되돌리기
+    /// </summary>
+    public void StartTeaching2Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_2_reverse.json");
+    }
+
+    /// <summary>
+    /// 티칭 3 버튼 클릭 (robot_teaching_3.json 실행)
+    /// </summary>
+    public void StartTeaching3()
+    {
+        StartTeachingByFileName("robot_teaching_3.json");
+    }
+
+    /// <summary>
+    /// 티칭 3 리버스 버튼 클릭 (robot_teaching_3_reverse.json 실행)
+    /// 플레이스 위치에서 픽업하여 원래 위치로 되돌리기
+    /// </summary>
+    public void StartTeaching3Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_3_reverse.json");
+    }
+
+    /// <summary>
+    /// 티칭 4 버튼 클릭 (robot_teaching_4.json 실행)
+    /// </summary>
+    public void StartTeaching4()
+    {
+        StartTeachingByFileName("robot_teaching_4.json");
+    }
+
+    /// <summary>
+    /// 티칭 4 리버스 버튼 클릭 (robot_teaching_4_reverse.json 실행)
+    /// 플레이스 위치에서 픽업하여 원래 위치로 되돌리기
+    /// </summary>
+    public void StartTeaching4Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_4_reverse.json");
+    }
+
+    /// <summary>
+    /// 티칭 5 버튼 클릭 (robot_teaching_5.json 실행)
+    /// </summary>
+    public void StartTeaching5()
+    {
+        StartTeachingByFileName("robot_teaching_5.json");
+    }
+
+    /// <summary>
+    /// 티칭 5 리버스 버튼 클릭 (robot_teaching_5_reverse.json 실행)
+    /// 플레이스 위치에서 픽업하여 원래 위치로 되돌리기
+    /// </summary>
+    public void StartTeaching5Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_5_reverse.json");
+    }
+
+    public void StartTeaching6()
+    {
+        StartTeachingByFileName("robot_teaching_6.json");
+    }
+
+    public void StartTeaching6Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_6_reverse.json");
+    }
+
+    public void StartTeaching7()
+    {
+        StartTeachingByFileName("robot_teaching_7.json");
+    }
+
+    public void StartTeaching7Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_7_reverse.json");
+    }
+
+    public void StartTeaching8()
+    {
+        StartTeachingByFileName("robot_teaching_8.json");
+    }
+
+    public void StartTeaching8Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_8_reverse.json");
+    }
+
+    public void StartTeaching9()
+    {
+        StartTeachingByFileName("robot_teaching_9.json");
+    }
+
+    public void StartTeaching9Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_9_reverse.json");
+    }
+
+    public void StartTeaching10()
+    {
+        StartTeachingByFileName("robot_teaching_10.json");
+    }
+
+    public void StartTeaching10Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_10_reverse.json");
+    }
+
+    public void StartTeaching11()
+    {
+        StartTeachingByFileName("robot_teaching_11.json");
+    }
+
+    public void StartTeaching11Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_11_reverse.json");
+    }
+
+    public void StartTeaching12()
+    {
+        StartTeachingByFileName("robot_teaching_12.json");
+    }
+
+    public void StartTeaching12Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_12_reverse.json");
+    }
+
+    public void StartTeaching13()
+    {
+        StartTeachingByFileName("robot_teaching_13.json");
+    }
+
+    public void StartTeaching13Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_13_reverse.json");
+    }
+
+    public void StartTeaching14()
+    {
+        StartTeachingByFileName("robot_teaching_14.json");
+    }
+
+    public void StartTeaching14Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_14_reverse.json");
+    }
+
+    public void StartTeaching15()
+    {
+        StartTeachingByFileName("robot_teaching_15.json");
+    }
+
+    public void StartTeaching15Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_15_reverse.json");
+    }
+
+    public void StartTeaching16()
+    {
+        StartTeachingByFileName("robot_teaching_16.json");
+    }
+
+    public void StartTeaching16Reverse()
+    {
+        StartTeachingByFileName("robot_teaching_16_reverse.json");
+    }
+
+    /// <summary>
+    /// 티칭 1~16 전체 순차 실행
+    /// </summary>
+    public async void StartAllTeachings()
+    {
+        await RunTeachingsSequential(false);
+    }
+
+    /// <summary>
+    /// 리버스 1~16 전체 순차 실행
+    /// </summary>
+    public async void StartAllReverseTeachings()
+    {
+        await RunTeachingsSequential(true);
+    }
+
+    /// <summary>
+    /// 티칭↔리버스 반복 실행 (T1→R1→T2→R2→...→T16→R16 → 다시 반복, 스톱까지)
+    /// </summary>
+    public async void StartTeachingLoop()
+    {
+        if (!isConnected)
+        {
+            UpdateTeachingStatus("로봇 연결 필요");
+            return;
+        }
+
+        if (isTeachingRunning)
+        {
+            WriteLog("[TEACHING LOOP] 이미 티칭이 진행 중입니다.");
+            return;
+        }
+
+        SetTeachingUIActive(true);
+        teachingCancellation = new CancellationTokenSource();
+        isTeachingRunning = true;
+        allTeachingsStartTime = Time.time;
+        int loopCount = 0;
+
+        WriteLog("[TEACHING LOOP] 티칭↔리버스 반복 시작");
+
+        string baseDir = Application.isEditor
+            ? Application.dataPath.Replace("/Assets", "")
+            : Directory.GetParent(Application.dataPath).FullName;
+
+        try
+        {
+            while (!teachingCancellation.Token.IsCancellationRequested)
+            {
+                loopCount++;
+                WriteLog($"[TEACHING LOOP] === 사이클 {loopCount} 시작 ===");
+
+                for (int i = 1; i <= 16; i++)
+                {
+                    if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                    // 티칭 i 실행
+                    string teachFile = $"robot_teaching_{i}.json";
+                    await ExecuteLoopFile(baseDir, teachFile, $"사이클{loopCount} 티칭{i}");
+
+                    if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                    // 다음 전 1초 대기
+                    await Task.Delay(1000, teachingCancellation.Token);
+
+                    if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                    // 리버스 i 실행
+                    string reverseFile = $"robot_teaching_{i}_reverse.json";
+                    await ExecuteLoopFile(baseDir, reverseFile, $"사이클{loopCount} 리버스{i}");
+
+                    if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                    // 다음 전 1초 대기
+                    if (i < 16)
+                    {
+                        await Task.Delay(1000, teachingCancellation.Token);
+                    }
+                }
+
+                if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                // 사이클 간 2초 대기
+                UpdateTeachingStatus($"사이클 {loopCount} 완료, 다음 사이클 준비...");
+                await Task.Delay(2000, teachingCancellation.Token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            WriteLog("[TEACHING LOOP] 취소됨");
+        }
+
+        float totalElapsed = Time.time - allTeachingsStartTime;
+        UpdateTeachingStatus($"반복 종료 (사이클 {loopCount}, 총 {totalElapsed:F1}초)");
+        WriteLog($"[TEACHING LOOP] 종료 (사이클 {loopCount}, 총 {totalElapsed:F1}초)");
+        await Task.Delay(2000);
+
+        SetTeachingUIActive(false);
+        isTeachingRunning = false;
+    }
+
+    /// <summary>
+    /// 반복 모드에서 단일 티칭 파일 실행 (내부)
+    /// </summary>
+    private async Task ExecuteLoopFile(string baseDir, string fileName, string label)
+    {
+        string filePath = Path.Combine(baseDir, fileName);
+
+        if (!File.Exists(filePath))
+        {
+            WriteLog($"[TEACHING LOOP] 파일 없음: {fileName}, 건너뜀");
+            return;
+        }
+
+        string json = File.ReadAllText(filePath);
+        currentTeachingData = JsonUtility.FromJson<TeachingData>(json);
+
+        if (currentTeachingData == null || currentTeachingData.steps == null || currentTeachingData.steps.Count == 0)
+        {
+            WriteLog($"[TEACHING LOOP] 유효하지 않은 JSON: {fileName}, 건너뜀");
+            return;
+        }
+
+        WriteLog($"[TEACHING LOOP] {label} 시작: {currentTeachingData.name}");
+        UpdateTeachingStatus($"{label}: {currentTeachingData.name}");
+
+        teachingStartTime = Time.time;
+        currentTeachingData.steps.Sort((a, b) => a.time.CompareTo(b.time));
+
+        foreach (var step in currentTeachingData.steps)
+        {
+            if (teachingCancellation.Token.IsCancellationRequested) break;
+
+            float elapsedTime = Time.time - teachingStartTime;
+            float waitTime = step.time - elapsedTime;
+
+            if (waitTime > 0)
+            {
+                UpdateTeachingStatus($"{label} - 스텝 {step.stepNumber} 대기");
+                await Task.Delay((int)(waitTime * 1000), teachingCancellation.Token);
+            }
+
+            if (teachingCancellation.Token.IsCancellationRequested) break;
+
+            UpdateTeachingStatus($"{label} - 스텝 {step.stepNumber}: {step.name}");
+            await ExecuteTeachingStep(step);
+        }
+
+        WriteLog($"[TEACHING LOOP] {label} 완료");
+    }
+
+    /// <summary>
+    /// 티칭 파일들을 순차적으로 실행 (1~16)
+    /// </summary>
+    private async Task RunTeachingsSequential(bool reverse)
+    {
+        if (!isConnected)
+        {
+            UpdateTeachingStatus("로봇 연결 필요");
+            return;
+        }
+
+        if (isTeachingRunning)
+        {
+            WriteLog("[TEACHING] 이미 티칭이 진행 중입니다.");
+            return;
+        }
+
+        SetTeachingUIActive(true);
+        teachingCancellation = new CancellationTokenSource();
+        isTeachingRunning = true;
+        allTeachingsStartTime = Time.time;
+
+        string label = reverse ? "리버스" : "티칭";
+        WriteLog($"[TEACHING] 전체 {label} 1~16 순차 실행 시작");
+
+        string baseDir = Application.isEditor
+            ? Application.dataPath.Replace("/Assets", "")
+            : Directory.GetParent(Application.dataPath).FullName;
+
+        for (int i = 1; i <= 16; i++)
+        {
+            if (teachingCancellation.Token.IsCancellationRequested) break;
+
+            string fileName = reverse
+                ? $"robot_teaching_{i}_reverse.json"
+                : $"robot_teaching_{i}.json";
+            string filePath = Path.Combine(baseDir, fileName);
+
+            UpdateTeachingStatus($"{label} {i}/16 로드 중...");
+
+            if (!File.Exists(filePath))
+            {
+                WriteLog($"[TEACHING] 파일을 찾을 수 없습니다: {fileName}, 건너뜀");
+                continue;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(filePath);
+                currentTeachingData = JsonUtility.FromJson<TeachingData>(json);
+
+                if (currentTeachingData == null || currentTeachingData.steps == null || currentTeachingData.steps.Count == 0)
+                {
+                    WriteLog($"[TEACHING] 유효하지 않은 JSON: {fileName}, 건너뜀");
+                    continue;
+                }
+
+                WriteLog($"[TEACHING] [{i}/16] 로드 완료: {currentTeachingData.name}");
+                UpdateTeachingStatus($"{label} {i}/16: {currentTeachingData.name}");
+
+                // 개별 티칭 실행 (UI 완료 대기 없이)
+                teachingStartTime = Time.time;
+                currentTeachingData.steps.Sort((a, b) => a.time.CompareTo(b.time));
+
+                foreach (var step in currentTeachingData.steps)
+                {
+                    if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                    float elapsedTime = Time.time - teachingStartTime;
+                    float waitTime = step.time - elapsedTime;
+
+                    if (waitTime > 0)
+                    {
+                        UpdateTeachingStatus($"{label} {i}/16 - 스텝 {step.stepNumber} 대기 ({waitTime:F1}초)");
+                        await Task.Delay((int)(waitTime * 1000), teachingCancellation.Token);
+                    }
+
+                    if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                    UpdateTeachingStatus($"{label} {i}/16 - 스텝 {step.stepNumber}: {step.name}");
+                    await ExecuteTeachingStep(step);
+                }
+
+                if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                WriteLog($"[TEACHING] [{i}/16] 완료: {currentTeachingData.name}");
+
+                // 다음 티칭 전 1초 대기
+                if (i < 16)
+                {
+                    UpdateTeachingStatus($"{label} {i}/16 완료, 다음 준비 중...");
+                    await Task.Delay(1000, teachingCancellation.Token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                WriteLog($"[TEACHING] 전체 {label} 취소됨 ({i}/16에서)");
+                break;
+            }
+            catch (Exception e)
+            {
+                WriteLog($"[TEACHING] {fileName} 오류: {e.Message}, 건너뜀");
+                continue;
+            }
+        }
+
+        float totalElapsed = Time.time - allTeachingsStartTime;
+
+        if (!teachingCancellation.Token.IsCancellationRequested)
+        {
+            UpdateTeachingStatus($"전체 {label} 1~16 완료! (총 {totalElapsed:F1}초)");
+            WriteLog($"[TEACHING] 전체 {label} 1~16 순차 실행 완료 (총 {totalElapsed:F1}초)");
+            await Task.Delay(2000);
+        }
+        else
+        {
+            WriteLog($"[TEACHING] 전체 {label} 취소됨 (경과 {totalElapsed:F1}초)");
+        }
+
+        SetTeachingUIActive(false);
+        isTeachingRunning = false;
+    }
+
+    /// <summary>
+    /// 지정된 파일명으로 티칭 실행
+    /// </summary>
+    public async void StartTeachingByFileName(string fileName)
+    {
+        if (!isConnected)
+        {
+            UpdateTeachingStatus("로봇 연결 필요");
+            return;
+        }
+
+        if (isTeachingRunning)
+        {
+            WriteLog("[TEACHING] 이미 티칭이 진행 중입니다.");
+            return;
+        }
+
+        // 티칭 UI 활성화
+        SetTeachingUIActive(true);
+
+        string baseDir = Application.isEditor
+            ? Application.dataPath.Replace("/Assets", "")
+            : Directory.GetParent(Application.dataPath).FullName;
+        string filePath = Path.Combine(baseDir, fileName);
+
+        WriteLog($"[TEACHING] 파일 로드 시도: {filePath}");
+
+        if (!File.Exists(filePath))
+        {
+            WriteLog($"[TEACHING] 파일을 찾을 수 없습니다: {fileName}");
+            UpdateTeachingStatus($"파일 없음: {fileName}");
+            return;
+        }
+
+        try
+        {
+            string json = File.ReadAllText(filePath);
+            currentTeachingData = JsonUtility.FromJson<TeachingData>(json);
+
+            if (currentTeachingData == null || currentTeachingData.steps == null || currentTeachingData.steps.Count == 0)
+            {
+                UpdateTeachingStatus("유효하지 않은 JSON");
+                return;
+            }
+
+            WriteLog($"[TEACHING] 로드 완료: {currentTeachingData.name}, 스텝 수: {currentTeachingData.steps.Count}");
+
+            // 티칭 실행 시작
+            teachingCancellation = new CancellationTokenSource();
+            isTeachingRunning = true;
+
+            await ExecuteTeaching(teachingCancellation.Token);
+        }
+        catch (Exception e)
+        {
+            UpdateTeachingStatus($"JSON 파싱 오류");
+            WriteLog($"[TEACHING] JSON 파싱 오류: {e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 지정된 번호의 티칭 파일 실행
+    /// </summary>
+    public async void StartTeachingByNumber(int teachingNumber)
+    {
+        if (!isConnected)
+        {
+            UpdateTeachingStatus("로봇 연결 필요");
+            return;
+        }
+
+        if (isTeachingRunning)
+        {
+            UpdateTeachingStatus("이미 실행 중");
+            return;
+        }
+
+        // 티칭 UI 활성화
+        SetTeachingUIActive(true);
+
+        string fileName = $"robot_teaching_{teachingNumber}.json";
+        string baseDir = Application.isEditor
+            ? Application.dataPath.Replace("/Assets", "")
+            : Directory.GetParent(Application.dataPath).FullName;
+        string filePath = Path.Combine(baseDir, fileName);
+
+        WriteLog($"[TEACHING] 티칭 {teachingNumber} 파일 로드 시도: {filePath}");
+
+        if (!File.Exists(filePath))
+        {
+            UpdateTeachingStatus($"파일 없음: {fileName}");
+            WriteLog($"[TEACHING] 파일을 찾을 수 없음: {filePath}");
+            return;
+        }
+
+        try
+        {
+            string json = File.ReadAllText(filePath);
+            currentTeachingData = JsonUtility.FromJson<TeachingData>(json);
+
+            if (currentTeachingData == null || currentTeachingData.steps == null || currentTeachingData.steps.Count == 0)
+            {
+                UpdateTeachingStatus("유효하지 않은 JSON");
+                return;
+            }
+
+            WriteLog($"[TEACHING] 로드 완료: {currentTeachingData.name}, 스텝 수: {currentTeachingData.steps.Count}");
+
+            // 티칭 실행 시작
+            teachingCancellation = new CancellationTokenSource();
+            isTeachingRunning = true;
+
+            await ExecuteTeaching(teachingCancellation.Token);
+        }
+        catch (Exception e)
+        {
+            UpdateTeachingStatus($"JSON 파싱 오류");
+            WriteLog($"[TEACHING] JSON 파싱 오류: {e.Message}");
+        }
+    }
+
+    /// <summary>
     /// 티칭 중지 버튼 클릭
     /// </summary>
     public void StopTeaching()
@@ -1706,10 +2385,9 @@ public class LebaiRobotController : MonoBehaviour
         WriteLog($"[TEACHING] move_joint 전송 (t={tStr}초): {paramsJson}");
         await SendJsonRpc("move_joint", paramsJson);
 
-        // 로봇이 실제로 이동을 완료할 때까지 대기 (duration 만큼)
-        int waitMs = (int)(step.duration * 1000);
-        WriteLog($"[TEACHING] 이동 완료 대기: {step.duration}초");
-        await Task.Delay(waitMs);
+        // 로봇이 실제로 이동을 완료할 때까지 대기 (IDLE 상태까지)
+        WriteLog($"[TEACHING] 로봇 IDLE 상태 대기 중...");
+        await WaitUntilRobotIdle();
 
         // UI 슬라이더 업데이트 (메인 스레드에서)
         for (int i = 0; i < 6 && i < sliders.Length; i++)
@@ -1755,15 +2433,12 @@ public class LebaiRobotController : MonoBehaviour
     /// </summary>
     private async Task ExecuteSetDO(TeachingStep step)
     {
-        string device = step.action.device ?? "FLANGE";
         int pin = step.action.pin;
         int value = step.action.value;
 
-        // device를 대문자로 변환
-        device = device.ToUpper();
-
-        string paramsJson = $"[{{\"device\": \"{device}\", \"pin\": {pin}, \"value\": {value}}}]";
-        WriteLog($"[TEACHING] set_do 전송: {paramsJson}");
+        // device 파라미터 없이 pin과 value만 전송 (버큠 그리퍼용)
+        string paramsJson = $"[{{\"pin\": {pin}, \"value\": {value}}}]";
+        WriteLog($"[TEACHING] set_do 전송 (pin={pin}, value={value}): {paramsJson}");
         await SendJsonRpc("set_do", paramsJson);
 
         // DO 동작 대기 (duration만큼)
@@ -1778,7 +2453,8 @@ public class LebaiRobotController : MonoBehaviour
     #region 버큠 그리퍼 제어
 
     /// <summary>
-    /// 버큠 ON
+    /// 버큠 ON (흡착)
+    /// 문서: set_do(1, 1) 진공펌프 ON, set_do(0, 0) 밸브 OFF
     /// </summary>
     public async void VacuumOn()
     {
@@ -1788,26 +2464,33 @@ public class LebaiRobotController : MonoBehaviour
             return;
         }
 
-        WriteLog($"[VACUUM] ON 요청 - Device: {vacuumDevice}, Pin: {vacuumPin}");
-        string paramsJson = $"[{{\"device\": \"{vacuumDevice.ToUpper()}\", \"pin\": {vacuumPin}, \"value\": 1}}]";
+        WriteLog("[VACUUM] ON 요청 - 진공펌프 ON, 밸브 OFF");
 
-        string response = await SendJsonRpc("set_do", paramsJson);
+        // DO_1 = 1 (진공 펌프 ON)
+        string paramsJson1 = $"[{{\"pin\": 1, \"value\": 1}}]";
+        string response1 = await SendJsonRpc("set_do", paramsJson1);
 
-        if (response != null && response.Contains("result"))
+        // DO_0 = 0 (밸브 OFF)
+        string paramsJson0 = $"[{{\"pin\": 0, \"value\": 0}}]";
+        string response0 = await SendJsonRpc("set_do", paramsJson0);
+
+        if (response1 != null && response1.Contains("result") &&
+            response0 != null && response0.Contains("result"))
         {
             isVacuumOn = true;
-            WriteLog("[VACUUM] ON 성공");
+            WriteLog("[VACUUM] ON 성공 (DO_1=1, DO_0=0)");
         }
         else
         {
-            WriteLog($"[VACUUM] ON 실패: {response}");
+            WriteLog($"[VACUUM] ON 실패 - DO_1: {response1}, DO_0: {response0}");
         }
 
         UpdateVacuumStatus();
     }
 
     /// <summary>
-    /// 버큠 OFF
+    /// 버큠 OFF (중료)
+    /// 문서: set_do(1, 0) 진공펌프 OFF, set_do(0, 0) 밸브 OFF
     /// </summary>
     public async void VacuumOff()
     {
@@ -1817,22 +2500,61 @@ public class LebaiRobotController : MonoBehaviour
             return;
         }
 
-        WriteLog($"[VACUUM] OFF 요청 - Device: {vacuumDevice}, Pin: {vacuumPin}");
-        string paramsJson = $"[{{\"device\": \"{vacuumDevice.ToUpper()}\", \"pin\": {vacuumPin}, \"value\": 0}}]";
+        WriteLog("[VACUUM] OFF 요청 - 진공펌프 OFF, 밸브 OFF");
 
-        string response = await SendJsonRpc("set_do", paramsJson);
+        // DO_1 = 0 (진공 펌프 OFF)
+        string paramsJson1 = $"[{{\"pin\": 1, \"value\": 0}}]";
+        string response1 = await SendJsonRpc("set_do", paramsJson1);
 
-        if (response != null && response.Contains("result"))
+        // DO_0 = 0 (밸브 OFF)
+        string paramsJson0 = $"[{{\"pin\": 0, \"value\": 0}}]";
+        string response0 = await SendJsonRpc("set_do", paramsJson0);
+
+        if (response1 != null && response1.Contains("result") &&
+            response0 != null && response0.Contains("result"))
         {
             isVacuumOn = false;
-            WriteLog("[VACUUM] OFF 성공");
+            WriteLog("[VACUUM] OFF 성공 (DO_1=0, DO_0=0)");
         }
         else
         {
-            WriteLog($"[VACUUM] OFF 실패: {response}");
+            WriteLog($"[VACUUM] OFF 실패 - DO_1: {response1}, DO_0: {response0}");
         }
 
         UpdateVacuumStatus();
+    }
+
+    /// <summary>
+    /// 버큠 배출 (놓을 때 사용)
+    /// 문서: set_do(1, 1) 진공펌프 ON, set_do(0, 1) 밸브 ON
+    /// </summary>
+    public async void VacuumBlow()
+    {
+        if (!isConnected)
+        {
+            WriteLog("[VACUUM] 로봇 연결 안됨");
+            return;
+        }
+
+        WriteLog("[VACUUM] 배출 요청 - 진공펌프 ON, 밸브 ON");
+
+        // DO_1 = 1 (진공 펌프 ON)
+        string paramsJson1 = $"[{{\"pin\": 1, \"value\": 1}}]";
+        string response1 = await SendJsonRpc("set_do", paramsJson1);
+
+        // DO_0 = 1 (밸브 ON - 공기 배출)
+        string paramsJson0 = $"[{{\"pin\": 0, \"value\": 1}}]";
+        string response0 = await SendJsonRpc("set_do", paramsJson0);
+
+        if (response1 != null && response1.Contains("result") &&
+            response0 != null && response0.Contains("result"))
+        {
+            WriteLog("[VACUUM] 배출 성공 (DO_1=1, DO_0=1)");
+        }
+        else
+        {
+            WriteLog($"[VACUUM] 배출 실패 - DO_1: {response1}, DO_0: {response0}");
+        }
     }
 
     /// <summary>
@@ -1959,47 +2681,58 @@ public class LebaiRobotController : MonoBehaviour
     #region 외부 연동 (PuzzleManager용)
 
     /// <summary>
-    /// 티칭 JSON 파일에서 실제 티칭 종료 시간을 계산하여 반환
-    /// (마지막 스텝의 time + duration)
+    /// 티칭 1~16 전체 소요 시간 계산 (각 파일 duration 합 + 사이 대기 1초)
     /// </summary>
     public float GetTeachingDuration()
     {
-        string filePath = GetTeachingFilePath();
+        string baseDir = Application.isEditor
+            ? Application.dataPath.Replace("/Assets", "")
+            : Directory.GetParent(Application.dataPath).FullName;
 
-        if (!File.Exists(filePath))
+        float totalDuration = 0f;
+        int loadedCount = 0;
+
+        for (int i = 1; i <= 16; i++)
         {
-            WriteLog($"[TEACHING] GetTeachingDuration: 파일 없음");
-            return -1f;
-        }
+            string filePath = Path.Combine(baseDir, $"robot_teaching_{i}_reverse.json");
 
-        try
-        {
-            string json = File.ReadAllText(filePath);
-            TeachingData data = JsonUtility.FromJson<TeachingData>(json);
+            if (!File.Exists(filePath)) continue;
 
-            if (data != null && data.steps != null && data.steps.Count > 0)
+            try
             {
-                // 실제 마지막 스텝 종료 시간 계산
-                float actualEndTime = 0f;
-                foreach (var step in data.steps)
-                {
-                    float stepEndTime = step.time + step.duration;
-                    if (stepEndTime > actualEndTime)
-                    {
-                        actualEndTime = stepEndTime;
-                    }
-                }
+                string json = File.ReadAllText(filePath);
+                TeachingData data = JsonUtility.FromJson<TeachingData>(json);
 
-                WriteLog($"[TEACHING] GetTeachingDuration: 실제 종료 시간 = {actualEndTime}초 (totalDuration: {data.totalDuration}초)");
-                return actualEndTime;
+                if (data != null && data.steps != null && data.steps.Count > 0)
+                {
+                    float fileEndTime = 0f;
+                    foreach (var step in data.steps)
+                    {
+                        float stepEndTime = step.time + step.duration;
+                        if (stepEndTime > fileEndTime)
+                        {
+                            fileEndTime = stepEndTime;
+                        }
+                    }
+
+                    totalDuration += fileEndTime;
+                    loadedCount++;
+                }
+            }
+            catch (Exception e)
+            {
+                WriteLog($"[TEACHING] GetTeachingDuration: robot_teaching_{i}_reverse.json 오류: {e.Message}");
             }
         }
-        catch (Exception e)
+
+        // 티칭 사이 대기 1초 (마지막 제외)
+        if (loadedCount > 1)
         {
-            WriteLog($"[TEACHING] GetTeachingDuration 오류: {e.Message}");
+            totalDuration += (loadedCount - 1) * 1.0f;
         }
 
-        return -1f;
+        WriteLog($"[TEACHING] GetTeachingDuration: 리버스 1~16 총 {totalDuration:F1}초 ({loadedCount}개 로드)");
+        return totalDuration > 0 ? totalDuration : -1f;
     }
 
     /// <summary>
@@ -2151,6 +2884,323 @@ public class LebaiRobotController : MonoBehaviour
             WriteLog("[TEACHING] 외부 호출: 게임 종료로 티칭 중지");
             StopTeaching();
         }
+    }
+
+    /// <summary>
+    /// 게임 모드: 티칭 1~16 순차 실행 (UI 없이)
+    /// </summary>
+    public void StartGameTeachings(System.Action onComplete = null)
+    {
+        _onTeachingComplete = onComplete;
+        lastCompletedTeachingNumber = 0;
+        stopAfterCurrentTeaching = false;
+
+        if (!isConnected)
+        {
+            WriteLog("[GAME TEACHING] 로봇 연결 안됨 - 스킵");
+            _onTeachingComplete?.Invoke();
+            _onTeachingComplete = null;
+            return;
+        }
+
+        if (isTeachingRunning)
+        {
+            WriteLog("[GAME TEACHING] 이미 실행 중");
+            return;
+        }
+
+        WriteLog("[GAME TEACHING] 게임 모드 티칭 1~16 순차 실행 시작");
+        _ = RunGameTeachingsSequential();
+    }
+
+    /// <summary>
+    /// 게임 모드: 현재 진행 중인 티칭 완료 후 중지 (즉시 취소하지 않음)
+    /// </summary>
+    public void StopGameTeachingsGraceful()
+    {
+        if (!isTeachingRunning)
+        {
+            WriteLog("[GAME TEACHING] 실행 중이 아님");
+            return;
+        }
+
+        WriteLog($"[GAME TEACHING] 현재 티칭 완료 후 중지 요청 (마지막 완료: {lastCompletedTeachingNumber}번)");
+        stopAfterCurrentTeaching = true;
+    }
+
+    /// <summary>
+    /// 게임 모드: 완료된 티칭만 리버스 정리 (1~N번)
+    /// </summary>
+    public void StartGameCleanup(System.Action onComplete)
+    {
+        _ = StartGameCleanupAsync(onComplete);
+    }
+
+    private async Task StartGameCleanupAsync(System.Action onComplete)
+    {
+        // 현재 티칭이 끝날 때까지 대기 (graceful stop 후 호출되므로)
+        if (isTeachingRunning)
+        {
+            WriteLog("[GAME CLEANUP] 현재 티칭 완료 대기 중...");
+            while (isTeachingRunning)
+            {
+                await Task.Delay(200);
+            }
+            WriteLog("[GAME CLEANUP] 티칭 완료 확인");
+        }
+
+        int cleanupCount = lastCompletedTeachingNumber;
+
+        if (cleanupCount <= 0)
+        {
+            WriteLog("[GAME CLEANUP] 정리할 티칭 없음 (완료된 티칭 0개)");
+            onComplete?.Invoke();
+            return;
+        }
+
+        if (!isConnected)
+        {
+            WriteLog("[GAME CLEANUP] 로봇 연결 안됨 - 정리 스킵");
+            onComplete?.Invoke();
+            return;
+        }
+
+        WriteLog($"[GAME CLEANUP] 리버스 1~{cleanupCount} 정리 시작");
+        _ = RunGameCleanupSequential(cleanupCount, onComplete);
+    }
+
+    /// <summary>
+    /// 마지막으로 완료된 티칭 번호 반환
+    /// </summary>
+    public int GetLastCompletedTeachingNumber()
+    {
+        return lastCompletedTeachingNumber;
+    }
+
+    /// <summary>
+    /// 게임 모드 티칭 순차 실행 (내부)
+    /// </summary>
+    private async Task RunGameTeachingsSequential()
+    {
+        isGameModeTeaching = true;
+        teachingCancellation = new CancellationTokenSource();
+        isTeachingRunning = true;
+        allTeachingsStartTime = Time.time;
+
+        string baseDir = Application.isEditor
+            ? Application.dataPath.Replace("/Assets", "")
+            : Directory.GetParent(Application.dataPath).FullName;
+
+        for (int i = 1; i <= 16; i++)
+        {
+            // 이전 티칭 완료 후 중지 플래그 체크
+            if (stopAfterCurrentTeaching)
+            {
+                WriteLog($"[GAME TEACHING] 중지 플래그 감지 - {i}번 시작하지 않음 (완료: {lastCompletedTeachingNumber}번까지)");
+                break;
+            }
+
+            if (teachingCancellation.Token.IsCancellationRequested) break;
+
+            string fileName = $"robot_teaching_{i}_reverse.json";
+            string filePath = Path.Combine(baseDir, fileName);
+
+            if (!File.Exists(filePath))
+            {
+                WriteLog($"[GAME TEACHING] 파일 없음: {fileName}, 건너뜀");
+                continue;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(filePath);
+                currentTeachingData = JsonUtility.FromJson<TeachingData>(json);
+
+                if (currentTeachingData == null || currentTeachingData.steps == null || currentTeachingData.steps.Count == 0)
+                {
+                    WriteLog($"[GAME TEACHING] 유효하지 않은 JSON: {fileName}, 건너뜀");
+                    continue;
+                }
+
+                WriteLog($"[GAME TEACHING] 리버스 [{i}/16] 시작: {currentTeachingData.name}");
+
+                // 개별 티칭 실행
+                teachingStartTime = Time.time;
+                currentTeachingData.steps.Sort((a, b) => a.time.CompareTo(b.time));
+
+                foreach (var step in currentTeachingData.steps)
+                {
+                    if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                    float elapsedTime = Time.time - teachingStartTime;
+                    float waitTime = step.time - elapsedTime;
+
+                    if (waitTime > 0)
+                    {
+                        await Task.Delay((int)(waitTime * 1000), teachingCancellation.Token);
+                    }
+
+                    if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                    WriteLog($"[GAME TEACHING] 리버스 [{i}/16] 스텝 {step.stepNumber}: {step.name}");
+                    await ExecuteTeachingStep(step);
+                }
+
+                if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                // 이 티칭 완료!
+                lastCompletedTeachingNumber = i;
+                WriteLog($"[GAME TEACHING] 리버스 [{i}/16] 완료 (누적 완료: {lastCompletedTeachingNumber}번)");
+
+                // 다음 티칭 전 1초 대기
+                if (i < 16 && !stopAfterCurrentTeaching)
+                {
+                    await Task.Delay(1000, teachingCancellation.Token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                WriteLog($"[GAME TEACHING] 취소됨 ({i}번 진행 중)");
+                break;
+            }
+            catch (Exception e)
+            {
+                WriteLog($"[GAME TEACHING] {fileName} 오류: {e.Message}, 건너뜀");
+                continue;
+            }
+        }
+
+        float totalElapsed = Time.time - allTeachingsStartTime;
+        WriteLog($"[GAME TEACHING] 종료 (완료: {lastCompletedTeachingNumber}번까지, 총 {totalElapsed:F1}초)");
+
+        isTeachingRunning = false;
+        isGameModeTeaching = false;
+        stopAfterCurrentTeaching = false;
+
+        _onTeachingComplete?.Invoke();
+        _onTeachingComplete = null;
+    }
+
+    /// <summary>
+    /// 게임 모드 리버스 정리 순차 실행 (내부)
+    /// </summary>
+    private async Task RunGameCleanupSequential(int count, System.Action onComplete)
+    {
+        isGameModeTeaching = true;
+        teachingCancellation = new CancellationTokenSource();
+        isTeachingRunning = true;
+        allTeachingsStartTime = Time.time;
+
+        // 정리중 UI 표시
+        if (teachingStatusText != null)
+        {
+            teachingStatusText.gameObject.SetActive(true);
+            teachingStatusText.text = $"정리중... (티칭 1~{count})";
+        }
+        if (teachingActiveIndicator != null)
+            teachingActiveIndicator.SetActive(true);
+
+        WriteLog($"[GAME CLEANUP] 티칭 1~{count} 순차 실행 시작");
+
+        string baseDir = Application.isEditor
+            ? Application.dataPath.Replace("/Assets", "")
+            : Directory.GetParent(Application.dataPath).FullName;
+
+        for (int i = 1; i <= count; i++)
+        {
+            if (teachingCancellation.Token.IsCancellationRequested) break;
+
+            string fileName = $"robot_teaching_{i}.json";
+            string filePath = Path.Combine(baseDir, fileName);
+
+            if (!File.Exists(filePath))
+            {
+                WriteLog($"[GAME CLEANUP] 파일 없음: {fileName}, 건너뜀");
+                continue;
+            }
+
+            try
+            {
+                string json = File.ReadAllText(filePath);
+                currentTeachingData = JsonUtility.FromJson<TeachingData>(json);
+
+                if (currentTeachingData == null || currentTeachingData.steps == null || currentTeachingData.steps.Count == 0)
+                {
+                    WriteLog($"[GAME CLEANUP] 유효하지 않은 JSON: {fileName}, 건너뜀");
+                    continue;
+                }
+
+                WriteLog($"[GAME CLEANUP] 티칭 [{i}/{count}] 시작: {currentTeachingData.name}");
+                if (teachingStatusText != null)
+                    teachingStatusText.text = $"정리중... ({i}/{count})";
+
+                teachingStartTime = Time.time;
+                currentTeachingData.steps.Sort((a, b) => a.time.CompareTo(b.time));
+
+                foreach (var step in currentTeachingData.steps)
+                {
+                    if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                    float elapsedTime = Time.time - teachingStartTime;
+                    float waitTime = step.time - elapsedTime;
+
+                    if (waitTime > 0)
+                    {
+                        await Task.Delay((int)(waitTime * 1000), teachingCancellation.Token);
+                    }
+
+                    if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                    WriteLog($"[GAME CLEANUP] 티칭 [{i}/{count}] 스텝 {step.stepNumber}: {step.name}");
+                    await ExecuteTeachingStep(step);
+                }
+
+                if (teachingCancellation.Token.IsCancellationRequested) break;
+
+                WriteLog($"[GAME CLEANUP] 티칭 [{i}/{count}] 완료");
+
+                // 다음 리버스 전 1초 대기
+                if (i < count)
+                {
+                    await Task.Delay(1000, teachingCancellation.Token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                WriteLog($"[GAME CLEANUP] 취소됨 (티칭 {i}번 진행 중)");
+                break;
+            }
+            catch (Exception e)
+            {
+                WriteLog($"[GAME CLEANUP] {fileName} 오류: {e.Message}, 건너뜀");
+                continue;
+            }
+        }
+
+        float totalElapsed = Time.time - allTeachingsStartTime;
+        WriteLog($"[GAME CLEANUP] 정리 완료 (총 {totalElapsed:F1}초)");
+
+        // 홈 포지션으로 복귀
+        if (teachingStatusText != null)
+            teachingStatusText.text = "홈 포지션 복귀 중...";
+
+        isTeachingRunning = false;  // MoveToHomePosition의 isBusy 체크를 위해 먼저 해제
+        await MoveToHomePosition();
+
+        // 정리중 UI 숨기기
+        if (teachingStatusText != null)
+        {
+            teachingStatusText.text = $"정리 완료! (총 {totalElapsed:F1}초)";
+            await Task.Delay(2000);
+            teachingStatusText.gameObject.SetActive(false);
+        }
+        if (teachingActiveIndicator != null)
+            teachingActiveIndicator.SetActive(false);
+
+        isGameModeTeaching = false;
+        lastCompletedTeachingNumber = 0;  // 정리 완료 후 리셋
+
+        onComplete?.Invoke();
     }
 
     #endregion
