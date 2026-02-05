@@ -3,7 +3,29 @@
     "allow": [
       "Bash(git push)",
       "Bash(git checkout:*)",
-      "Bash(gh repo view:*)"
+      "Bash(gh repo view:*)",
+      "Bash(copy:*)",
+      "Bash(python update_teaching_timing.py:*)",
+      "Bash(py:*)",
+      "Bash(powershell.exe -Command \"cd ''c:\\\\UnityProject\\\\InCheon_AwarenessPuzzleGameAI''; python update_teaching_timing.py\")",
+      "Bash(powershell.exe -Command \"where.exe python\")",
+      "Bash(powershell.exe -Command \"cd ''c:\\\\UnityProject\\\\InCheon_AwarenessPuzzleGameAI''; C:\\\\Users\\\\dollz\\\\AppData\\\\Local\\\\Microsoft\\\\WindowsApps\\\\python.exe update_teaching_timing.py\")",
+      "Bash(powershell.exe -Command \"node --version\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"c:\\\\UnityProject\\\\InCheon_AwarenessPuzzleGameAI\\\\update_files.ps1\")",
+      "Bash(powershell.exe -Command \"cd ''c:\\\\UnityProject\\\\InCheon_AwarenessPuzzleGameAI''; python fix_all_timing.py 2>&1\")",
+      "Bash(del \"c:\\\\UnityProject\\\\InCheon_AwarenessPuzzleGameAI\\\\robot_teaching.json\")",
+      "Bash(del \"c:\\\\UnityProject\\\\InCheon_AwarenessPuzzleGameAI\\\\robot_cleanup.json\")",
+      "Bash(git status:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(where:*)",
+      "Bash(C:UsersdollzAppDataLocalMicrosoftWindowsAppspython.exe \"C:\\\\Users\\\\dollz\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--UnityProject-InCheon-AwarenessPuzzleGameAI\\\\a5258c4f-5bec-47d5-be3b-92a71ec5ccf6\\\\scratchpad\\\\generate_teachings.py\")",
+      "Bash(\"/mnt/c/Users/dollz/AppData/Local/Microsoft/WindowsApps/python.exe\" \"C:\\\\Users\\\\dollz\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--UnityProject-InCheon-AwarenessPuzzleGameAI\\\\a5258c4f-5bec-47d5-be3b-92a71ec5ccf6\\\\scratchpad\\\\generate_teachings.py\")",
+      "Bash(cmd.exe /c \"python C:\\\\Users\\\\dollz\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--UnityProject-InCheon-AwarenessPuzzleGameAI\\\\a5258c4f-5bec-47d5-be3b-92a71ec5ccf6\\\\scratchpad\\\\generate_teachings.py\")",
+      "Bash(cmd.exe /c \"python C:\\\\Users\\\\dollz\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--UnityProject-InCheon-AwarenessPuzzleGameAI\\\\a5258c4f-5bec-47d5-be3b-92a71ec5ccf6\\\\scratchpad\\\\generate_teachings.py 2>&1\")",
+      "Bash(powershell.exe -Command:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)"
     ]
   }
 }

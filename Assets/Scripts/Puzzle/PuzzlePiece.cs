@@ -126,6 +126,7 @@ public class PuzzlePiece : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     /// </summary>
     private void PickUp()
     {
+        // 이미 들고 있으면 무시
         _isPickedUp = true;
 
         // 원래 위치 저장

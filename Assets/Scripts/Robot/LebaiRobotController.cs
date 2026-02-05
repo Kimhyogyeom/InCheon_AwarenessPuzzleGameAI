@@ -191,9 +191,14 @@ public class LebaiRobotController : MonoBehaviour
     [SerializeField] private GameObject teachingActiveIndicator;  // 티칭 중 활성화되는 오브젝트
 
     [Header("홈 포지션 설정")]
-    [SerializeField] private float[] homePosition = new float[] { 0f, 0f, 0f, 0f, 0f, 0f };  // 홈 포지션 (도 단위)
+    [SerializeField] private float[] homePosition = new float[] { 0f, -45f, 90f, -45f, 0f, 0f };  // 홈 포지션 (도 단위)
     [SerializeField] private float homeMoveTime = 5f;  // 홈 포지션 이동 시간 (초)
     [SerializeField] private bool autoHomeOnConnect = true;  // 연결 시 자동으로 홈 포지션 이동
+
+    [Header("속도 설정")]
+    [SerializeField] private bool slowMode = false;  // true: 모든 티칭 속도 1/3로 감속
+    [SerializeField] private Button slowModeToggleButton;  // 슬로우 모드 토글 버튼
+    [SerializeField] private TextMeshProUGUI slowModeButtonText;  // 버튼 텍스트 표시
 
     private const float JOINT_LIMIT_DEG = 200f;
 
@@ -454,6 +459,9 @@ public class LebaiRobotController : MonoBehaviour
 
         // 티칭 UI 초기 상태: 비활성화 (controlPanel 상태는 유지)
         SetTeachingUIActive(false, affectControlPanel: false);
+
+        // 슬로우 모드 버튼 초기 텍스트
+        UpdateSlowModeText();
 
         // 자동 연결 시도
         WriteLog("[INIT] 자동 연결 시도...");
@@ -1307,37 +1315,44 @@ public class LebaiRobotController : MonoBehaviour
 
         try
         {
-            WriteLog($"[HOME] 홈 포지션으로 이동 시작 (순차 이동: J2 > J6 > J5 > J4 > J3 > J1 > J2)");
+            WriteLog($"[HOME] 홈 포지션으로 이동 시작 (순차: J2→-90 > J3456 > J1 > J2→-45)");
             UpdateStatus("홈 포지션 이동 중...");
 
             var culture = System.Globalization.CultureInfo.InvariantCulture;
             string vStr = velocity.ToString("F2", culture);
             string aStr = acceleration.ToString("F2", culture);
 
-            // 현재 각도 (정확하지 않을 수 있으므로 현재 슬라이더 값 사용)
+            // 현재 로봇 위치 동기화 (슬라이더가 0일 수 있으므로 반드시 갱신)
+            await GetCurrentJointPositionsAsync();
+
+            // 현재 각도 (슬라이더 값 사용)
             float[] currentAngles = new float[6];
             for (int i = 0; i < 6; i++)
             {
                 currentAngles[i] = (sliders[i] != null) ? sliders[i].value : 0;
             }
 
-            // STEP 1: J2축을 -45도로 먼저 올려서 충돌 방지
-            WriteLog("[HOME] 1단계: J2축을 -45도로 상승");
-            currentAngles[1] = -45;
+            // STEP 1: J2축을 -90도로 리프트 (안전 이동 높이)
+            WriteLog("[HOME] 1단계: J2축을 -90도로 리프트");
+            currentAngles[1] = -90f;
             await MoveJointToAngles(currentAngles, vStr, aStr, "1.5");
 
-            // STEP 2: J2=-45 유지하면서 나머지 축 동시에 0도로 이동
-            WriteLog("[HOME] 2단계: 나머지 축 동시에 0도로 이동");
-            currentAngles[0] = 0;  // J1
-            currentAngles[2] = 0;  // J3
-            currentAngles[3] = 0;  // J4
-            currentAngles[4] = 0;  // J5
-            currentAngles[5] = 0;  // J6
+            // STEP 2: J3,J4,J5,J6을 홈 포지션으로 이동 (J1 유지, J2=-90)
+            WriteLog("[HOME] 2단계: J3,J4,J5,J6 홈 포지션으로 이동");
+            currentAngles[2] = homePosition[2];  // 90
+            currentAngles[3] = homePosition[3];  // -45
+            currentAngles[4] = homePosition[4];  // 0
+            currentAngles[5] = homePosition[5];  // 0
             await MoveJointToAngles(currentAngles, vStr, aStr, "2.0");
 
-            // STEP 3: 마지막으로 J2를 0도로 하강
-            WriteLog("[HOME] 3단계: J2를 0도로 하강");
-            currentAngles[1] = 0;
+            // STEP 3: J1을 홈 포지션으로 이동 (J2=-90 유지)
+            WriteLog("[HOME] 3단계: J1 홈 포지션으로 이동");
+            currentAngles[0] = homePosition[0];  // 0
+            await MoveJointToAngles(currentAngles, vStr, aStr, "1.5");
+
+            // STEP 4: J2를 홈 포지션으로 하강 (-45도)
+            WriteLog("[HOME] 4단계: J2 홈 포지션으로 하강");
+            currentAngles[1] = homePosition[1];  // -45
             await MoveJointToAngles(currentAngles, vStr, aStr, "1.5");
 
             // UI 슬라이더 업데이트 (이벤트 발생하지만 isMovingToHome이 true라 무시됨)
@@ -1867,6 +1882,29 @@ public class LebaiRobotController : MonoBehaviour
     }
 
     /// <summary>
+    /// 슬로우 모드 토글 (버튼 OnClick 연결용)
+    /// </summary>
+    public void ToggleSlowMode()
+    {
+        slowMode = !slowMode;
+        UpdateSlowModeText();
+        string state = slowMode ? "ON (1/3 속도)" : "OFF (최고 속도)";
+        WriteLog($"[SLOW MODE] {state}");
+        UpdateStatus($"슬로우 모드: {state}");
+    }
+
+    /// <summary>
+    /// 슬로우 모드 버튼 텍스트 업데이트
+    /// </summary>
+    private void UpdateSlowModeText()
+    {
+        if (slowModeButtonText != null)
+        {
+            slowModeButtonText.text = slowMode ? "Speed Slow" : "Speed Normal";
+        }
+    }
+
+    /// <summary>
     /// 티칭↔리버스 반복 실행 (T1→R1→T2→R2→...→T16→R16 → 다시 반복, 스톱까지)
     /// </summary>
     public async void StartTeachingLoop()
@@ -2359,12 +2397,33 @@ public class LebaiRobotController : MonoBehaviour
             return;
         }
 
+        // 실제 사용할 joints 배열
+        float[] jointsToUse = new float[6];
+        for (int i = 0; i < 6; i++)
+        {
+            jointsToUse[i] = step.action.joints[i];
+        }
+
+        // "J2 리프트" 스텝: J2만 변경하고 나머지는 현재 위치 유지 (연속 티칭 시 0으로 가는 문제 해결)
+        if (step.name != null && step.name.Contains("J2 리프트"))
+        {
+            // 현재 슬라이더 값으로 J1, J3, J4, J5, J6 유지
+            for (int i = 0; i < 6; i++)
+            {
+                if (i != 1 && sliders[i] != null)  // J2(인덱스 1)는 JSON 값 사용
+                {
+                    jointsToUse[i] = sliders[i].value;
+                }
+            }
+            WriteLog($"[TEACHING] J2 리프트: 현재 위치 유지, J2만 {step.action.joints[1]}도로 이동");
+        }
+
         // 도 단위를 라디안으로 변환
         var culture = System.Globalization.CultureInfo.InvariantCulture;
         double[] anglesRad = new double[6];
         for (int i = 0; i < 6; i++)
         {
-            anglesRad[i] = step.action.joints[i] * Mathf.Deg2Rad;
+            anglesRad[i] = jointsToUse[i] * Mathf.Deg2Rad;
         }
 
         string jointArray = string.Format(culture, "[{0:F6}, {1:F6}, {2:F6}, {3:F6}, {4:F6}, {5:F6}]",
@@ -2373,11 +2432,20 @@ public class LebaiRobotController : MonoBehaviour
         // 속도/가속도 (오버라이드 또는 기본값 사용)
         float v = step.action.velocity >= 0 ? step.action.velocity : velocity;
         float a = step.action.acceleration >= 0 ? step.action.acceleration : acceleration;
+
+        // 슬로우 모드: 속도/가속도 1/3
+        if (slowMode)
+        {
+            v /= 3f;
+            a /= 3f;
+        }
+
         string vStr = v.ToString("F2", culture);
         string aStr = a.ToString("F2", culture);
 
-        // t 파라미터: duration을 사용하여 정확한 시간 제어
-        string tStr = step.duration.ToString("F2", culture);
+        // t 파라미터: duration을 사용하여 정확한 시간 제어 (슬로우 모드: 3배)
+        float t = slowMode ? step.duration * 3f : step.duration;
+        string tStr = t.ToString("F2", culture);
 
         // move_joint with t parameter (시간 기반 이동)
         string paramsJson = $"[{{\"pose\": {{\"kind\": 1, \"joint\": {{\"joint\": {jointArray}}}}}, \"param\": {{\"velocity\": {vStr}, \"acc\": {aStr}, \"t\": {tStr}}}}}]";
@@ -2389,12 +2457,12 @@ public class LebaiRobotController : MonoBehaviour
         WriteLog($"[TEACHING] 로봇 IDLE 상태 대기 중...");
         await WaitUntilRobotIdle();
 
-        // UI 슬라이더 업데이트 (메인 스레드에서)
+        // UI 슬라이더 업데이트 (실제 이동한 값으로)
         for (int i = 0; i < 6 && i < sliders.Length; i++)
         {
             if (sliders[i] != null)
             {
-                sliders[i].value = step.action.joints[i];
+                sliders[i].value = jointsToUse[i];
             }
         }
         UpdateAllAngleTexts();
