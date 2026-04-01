@@ -25,7 +25,8 @@
       "Bash(cmd.exe /c \"python C:\\\\Users\\\\dollz\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--UnityProject-InCheon-AwarenessPuzzleGameAI\\\\a5258c4f-5bec-47d5-be3b-92a71ec5ccf6\\\\scratchpad\\\\generate_teachings.py 2>&1\")",
       "Bash(powershell.exe -Command:*)",
       "Bash(grep:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(powershell -Command \"Write-Host ''hello''\")"
     ]
   }
 }

@@ -16,6 +16,9 @@ MonoBehaviour:
   - name: BGM
     clip: {fileID: 8300000, guid: 0d2ae5dfa006cb1469790ae2244b4331, type: 3}
     volume: 1
+  - name: GameBGM
+    clip: {fileID: 8300000, guid: 0038c8a4be12f494f92abdd55ac356dc, type: 3}
+    volume: 1
   sfxList:
   - name: ButtonClick
     clip: {fileID: 8300000, guid: 74375efbc69974b48a7dbefbc252fa4f, type: 3}

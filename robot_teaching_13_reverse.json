@@ -1,123 +1,142 @@
-{
-  "name": "티칭 13 리버스 - 퍼즐 되돌리기",
-  "description": "단순화된 퍼즐 되돌리기",
-  "totalDuration": 10.1,
-  "steps": [
-    {
-      "stepNumber": 1,
-      "name": "DST 위치로 이동 (J2 -90)",
-      "time": 0.0,
-      "duration": 2.0,
-      "action": {
-        "type": "move_joint",
-        "joints": [-2.39, -90, 7.4, 0, -61.3, 0],
-        "velocity": 5.0,
-        "acceleration": 8.0
-      }
-    },
-    {
-      "stepNumber": 2,
-      "name": "DST 최종 하강",
-      "time": 2.0,
-      "duration": 1.0,
-      "action": {
-        "type": "move_joint",
-        "joints": [-2.39, -3.2, 7.4, 0, -61.3, 0],
-        "velocity": 5.0,
-        "acceleration": 8.0
-      }
-    },
-    {
-      "stepNumber": 3,
-      "name": "대기 (1초)",
-      "time": 3.0,
-      "duration": 1.0,
-      "action": { "type": "wait" }
-    },
-    {
-      "stepNumber": 4,
-      "name": "버큠 ON - 진공펌프",
-      "time": 4.0,
-      "duration": 0.1,
-      "action": { "type": "set_do", "pin": 1, "value": 1 }
-    },
-    {
-      "stepNumber": 5,
-      "name": "버큠 ON - 밸브",
-      "time": 4.1,
-      "duration": 0.1,
-      "action": { "type": "set_do", "pin": 0, "value": 0 }
-    },
-    {
-      "stepNumber": 6,
-      "name": "대기 (2초) - 흡착 대기",
-      "time": 4.2,
-      "duration": 2.0,
-      "action": { "type": "wait" }
-    },
-    {
-      "stepNumber": 7,
-      "name": "DST 리프트 (5도)",
-      "time": 6.2,
-      "duration": 0.5,
-      "action": {
-        "type": "move_joint",
-        "joints": [-2.39, -8.7, 7.4, 0, -61.3, 0],
-        "velocity": 5.0,
-        "acceleration": 8.0
-      }
-    },
-    {
-      "stepNumber": 8,
-      "name": "SRC 위치로 이동 (J2 -90)",
-      "time": 6.7,
-      "duration": 2.0,
-      "action": {
-        "type": "move_joint",
-        "joints": [63.4, -90, 115.7, -32.12, 0, -27.5],
-        "velocity": 5.0,
-        "acceleration": 8.0
-      }
-    },
-    {
-      "stepNumber": 9,
-      "name": "SRC 최종 하강",
-      "time": 8.7,
-      "duration": 1.0,
-      "action": {
-        "type": "move_joint",
-        "joints": [63.4, -55.3, 115.7, -32.12, 0, -27.5],
-        "velocity": 5.0,
-        "acceleration": 8.0
-      }
-    },
-    {
-      "stepNumber": 10,
-      "name": "블로우 - 진공펌프 ON",
-      "time": 9.7,
-      "duration": 0.1,
-      "action": { "type": "set_do", "pin": 1, "value": 1 }
-    },
-    {
-      "stepNumber": 11,
-      "name": "블로우 - 밸브 ON",
-      "time": 9.8,
-      "duration": 0.1,
-      "action": { "type": "set_do", "pin": 0, "value": 1 }
-    },
-    {
-      "stepNumber": 12,
-      "name": "버큠 OFF - 진공펌프",
-      "time": 9.9,
-      "duration": 0.1,
-      "action": { "type": "set_do", "pin": 1, "value": 0 }
-    },
-    {
-      "stepNumber": 13,
-      "name": "버큠 OFF - 밸브",
-      "time": 10.0,
-      "duration": 0.1,
-      "action": { "type": "set_do", "pin": 0, "value": 0 }
-    }
-  ]
+﻿{
+    "name":  "티칭 13 리버스 - 퍼즐 되돌리기",
+    "description":  "단순화된 퍼즐 되돌리기",
+    "totalDuration":  6.2,
+    "steps":  [
+                  {
+                      "stepNumber":  1,
+                      "name":  "DST 위치로 이동 (J2 -13.2)",
+                      "time":  0.0,
+                      "duration":  1,
+                      "action":  {
+                                     "type":  "move_joint",
+                                     "joints":  [
+                                                    -2.39,
+                                                    -13.2,
+                                                    7.4,
+                                                    0,
+                                                    -61.3,
+                                                    0
+                                                ],
+                                     "velocity":  5.0,
+                                     "acceleration":  8.0
+                                 }
+                  },
+                  {
+                      "stepNumber":  2,
+                      "name":  "DST 최종 하강",
+                      "time":  1.0,
+                      "duration":  0.5,
+                      "action":  {
+                                     "type":  "move_joint",
+                                     "joints":  [
+                                                    -2.39,
+                                                    -3.2,
+                                                    7.4,
+                                                    0,
+                                                    -61.3,
+                                                    0
+                                                ],
+                                     "velocity":  5.0,
+                                     "acceleration":  8.0
+                                 }
+                  },
+                  {
+                      "stepNumber":  3,
+                      "name":  "대기 (1초)",
+                      "time":  1.5,
+                      "duration":  0.3,
+                      "action":  {
+                                     "type":  "wait"
+                                 }
+                  },
+                  {
+                      "stepNumber":  4,
+                      "name":  "버큠 ON - 밸브",
+                      "time":  1.9,
+                      "duration":  0.1,
+                      "action":  {
+                                     "type":  "set_do",
+                                     "pin":  0,
+                                     "value":  0
+                                 }
+                  },
+                  {
+                      "stepNumber":  5,
+                      "name":  "대기 (2초) - 흡착 대기",
+                      "time":  2.0,
+                      "duration":  2,
+                      "action":  {
+                                     "type":  "wait"
+                                 }
+                  },
+                  {
+                      "stepNumber":  6,
+                      "name":  "DST 리프트 (5도)",
+                      "time":  4.0,
+                      "duration":  0.5,
+                      "action":  {
+                                     "type":  "move_joint",
+                                     "joints":  [
+                                                    -2.39,
+                                                    -8.7,
+                                                    7.4,
+                                                    0,
+                                                    -61.3,
+                                                    0
+                                                ],
+                                     "velocity":  5.0,
+                                     "acceleration":  8.0
+                                 }
+                  },
+                  {
+                      "stepNumber":  7,
+                      "name":  "SRC 위치로 이동 (J2 -65.3)",
+                      "time":  4.5,
+                      "duration":  1,
+                      "action":  {
+                                     "type":  "move_joint",
+                                     "joints":  [
+                                                    63.4,
+                                                    -65.3,
+                                                    115.7,
+                                                    -32.12,
+                                                    0,
+                                                    -27.5
+                                                ],
+                                     "velocity":  5.0,
+                                     "acceleration":  8.0
+                                 }
+                  },
+                  {
+                      "stepNumber":  8,
+                      "name":  "SRC 최종 하강",
+                      "time":  5.5,
+                      "duration":  0.5,
+                      "action":  {
+                                     "type":  "move_joint",
+                                     "joints":  [
+                                                    63.4,
+                                                    -55.3,
+                                                    115.7,
+                                                    -32.12,
+                                                    0,
+                                                    -27.5
+                                                ],
+                                     "velocity":  5.0,
+                                     "acceleration":  8.0
+                                 }
+                  },
+                  {
+                      "stepNumber":  9,
+                      "name":  "블로우 - 밸브 ON",
+                      "time":  6.1,
+                      "duration":  0.1,
+                      "action":  {
+                                     "type":  "set_do",
+                                     "pin":  0,
+                                     "value":  1
+                                 }
+                  }
+              ]
 }

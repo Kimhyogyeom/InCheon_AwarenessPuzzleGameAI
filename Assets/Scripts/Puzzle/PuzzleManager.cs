@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 
@@ -39,6 +40,16 @@ public class PuzzleManager : MonoBehaviour
     // 로봇 정리 동작 중 터치 방지용 패널
     [SerializeField] private GameObject _cleanupBlockPanel;
 
+    [Header("결과창 자동 정리 오브젝트")]
+    // 정리 완료 후 활성화 (버튼들)
+    [SerializeField] private GameObject _resultButtonsObject;
+
+    // 정리 중 활성화 (정리 중 표시)
+    [SerializeField] private GameObject _cleanupWaitObject;
+
+    // 정리 중 진행 텍스트 (정리중 ... (1/16) 형태)
+    [SerializeField] private TextMeshProUGUI _cleanupProgressText;
+
     [Header("랜덤 배치 범위")]
     // X축 범위 (부모 기준)
     [SerializeField] private Vector2 _randomRangeX = new Vector2(-200f, 200f);
@@ -56,6 +67,13 @@ public class PuzzleManager : MonoBehaviour
     [Header("설정")]
     // 게임 시작 시 자동 셔플
     [SerializeField] private bool _shuffleOnStart = true;
+
+    [Header("개발/테스트 모드")]
+    // true: 타이머 무시하고 계속 플레이 가능 (테스트용)
+    [SerializeField] private bool _developmentMode = false;
+
+    // 로봇 없을 때 가짜 정리 시간 (초) - 테스트용
+    [SerializeField] private float _fakeCleanupDelay = 3f;
 
     // 퍼즐 조각 리스트
     private PuzzlePiece[] _puzzlePieces;
@@ -80,6 +98,9 @@ public class PuzzleManager : MonoBehaviour
 
     // 패널 활성화 감지용
     private bool _wasPanelActive = false;
+
+    // 타이머 만료 후 로봇 티칭 완료 대기 플래그
+    private bool _waitingForRobotToFinish = false;
 
 
     void Awake()
@@ -107,6 +128,8 @@ public class PuzzleManager : MonoBehaviour
         if (_resultObjectA != null) _resultObjectA.SetActive(false);
         if (_successObjectB != null) _successObjectB.SetActive(false);
         if (_failObjectC != null) _failObjectC.SetActive(false);
+        if (_cleanupWaitObject != null) _cleanupWaitObject.SetActive(false);
+        if (_cleanupProgressText != null) _cleanupProgressText.gameObject.SetActive(false);
 
         if (_shuffleOnStart)
         {
@@ -125,14 +148,23 @@ public class PuzzleManager : MonoBehaviour
         UpdateTimeLimitFromRobot();
 
         _remainingTime = _timeLimit;
-        _placedCount = 0;
         _isGameRunning = true;
         _isGameEnded = false;
+        _waitingForRobotToFinish = false;
+
+        // GameManager 플래그 초기화
+        if (GameManager._Instance != null)
+        {
+            GameManager._Instance.OnBattleStarted();
+        }
 
         // 결과 오브젝트 확실히 비활성화
         if (_resultObjectA != null) _resultObjectA.SetActive(false);
         if (_successObjectB != null) _successObjectB.SetActive(false);
         if (_failObjectC != null) _failObjectC.SetActive(false);
+
+        // 퍼즐 조각/슬롯 초기화 (이전 게임 잔여 상태 제거)
+        ResetAllPuzzlePieces();
 
         UpdateTimerDisplay();
 
@@ -178,10 +210,13 @@ public class PuzzleManager : MonoBehaviour
 
     /// <summary>
     /// 로봇이 리버스 1~16을 모두 완료했을 때 호출 (= 로봇 승리)
+    /// 또는 타이머 만료 후 현재 티칭 완료 시 호출
     /// </summary>
     private void OnRobotTeachingComplete()
     {
         if (_isGameEnded) return;
+
+        _waitingForRobotToFinish = false;
 
         // 로봇이 마지막 퍼즐까지 놓았으므로 타이머를 0으로 맞추고 게임 종료
         _remainingTime = 0f;
@@ -219,10 +254,28 @@ public class PuzzleManager : MonoBehaviour
 
         if (!_isGameRunning || _isGameEnded) return;
 
-        // 타이머 감소 (대략적 표시용 - 로봇 완료 콜백이 실제 게임을 끝냄)
+        // 타이머 감소
         _remainingTime -= Time.deltaTime;
         if (_remainingTime < 0f) _remainingTime = 0f;
         UpdateTimerDisplay();
+
+        // 타이머 만료 시 처리 - 개발 모드가 아닐 때만
+        if (_remainingTime <= 0f && !_developmentMode && !_waitingForRobotToFinish)
+        {
+            var robot = FindObjectOfType<LebaiRobotController>();
+            if (robot != null && robot.IsTeachingRunning)
+            {
+                // 로봇이 티칭 중 - 현재 티칭 완료 후 종료 (마지막 퍼즐을 다 놓고 끝내기)
+                Debug.Log("[PuzzleManager] 타이머 만료 - 로봇 티칭 완료 대기 중...");
+                _isGameRunning = false;
+                _waitingForRobotToFinish = true;
+                StopRobotTeaching(); // graceful: 현재 티칭 완료 후 중지, 콜백 호출
+            }
+            else
+            {
+                OnTimeUp();
+            }
+        }
     }
 
     /// <summary>
@@ -239,7 +292,7 @@ public class PuzzleManager : MonoBehaviour
     /// <summary>
     /// 시간 초과 시 호출 (= 로봇 승리!)
     /// </summary>
-    private void OnTimeUp()
+    public void OnTimeUp()
     {
         if (_isGameEnded) return;
 
@@ -256,6 +309,9 @@ public class PuzzleManager : MonoBehaviour
         {
             SoundManager.Instance.PlaySFX("Lose");
         }
+
+        // 먼저 버튼 비활성화 준비
+        StartAutoCleanup();
 
         // A + C 활성화 (로봇 승리 = 유저 패배)
         if (_resultObjectA != null) _resultObjectA.SetActive(true);
@@ -369,6 +425,9 @@ public class PuzzleManager : MonoBehaviour
         {
             SoundManager.Instance.PlaySFX("Win");
         }
+
+        // 먼저 버튼 비활성화 준비
+        StartAutoCleanup();
 
         // A + B 활성화 (유저 승리)
         if (_resultObjectA != null) _resultObjectA.SetActive(true);
@@ -509,6 +568,18 @@ public class PuzzleManager : MonoBehaviour
             _wasPanelActive = _puzzleGamePanel.activeInHierarchy;
         }
 
+        // GameManager 플래그 초기화 (결과창/정리 상태 리셋)
+        if (GameManager._Instance != null)
+        {
+            GameManager._Instance.OnBattleStarted();
+        }
+
+        // 대결 BGM 재시작
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlayGameBGM();
+        }
+
         UpdateTimerDisplay();
 
         // 로봇 티칭 시작 (대결 재시작!)
@@ -553,6 +624,110 @@ public class PuzzleManager : MonoBehaviour
     }
 
     /// <summary>
+    /// 게임 결과 후 자동 정리 시작 (결과창에서)
+    /// </summary>
+    private void StartAutoCleanup()
+    {
+        Debug.Log("[StartAutoCleanup] 시작");
+
+        // 정리 시작 즉시 기본 BGM으로 전환
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlayDefaultBGM();
+        }
+
+        // 타이머 UI 숨기기 (정리 중에는 타이머 비표시)
+        if (UIManager._Instance != null)
+        {
+            UIManager._Instance.HideInactivityTimer();
+        }
+
+        // 버튼 비활성화 (정리 중 표시는 숨김 처리)
+        if (_resultButtonsObject != null)
+        {
+            Debug.Log("[StartAutoCleanup] 버튼 비활성화 시도");
+            _resultButtonsObject.SetActive(false);
+            Debug.Log("[StartAutoCleanup] 버튼 비활성화 완료");
+        }
+        // _cleanupWaitObject 비활성화 유지 (텍스트 표시 안 함)
+
+        // 정리 진행 텍스트 초기화
+        if (_cleanupProgressText != null)
+        {
+            _cleanupProgressText.text = "정리 중 ...";
+            _cleanupProgressText.gameObject.SetActive(true);
+        }
+
+        var robot = FindObjectOfType<LebaiRobotController>();
+        if (robot != null)
+        {
+            // 완료된 티칭만 리버스 정리 (1~N번)
+            robot.StartGameCleanup(
+                () => OnCleanupFinished(),
+                (current, total) =>
+                {
+                    if (_cleanupProgressText != null)
+                        _cleanupProgressText.text = $"정리 중 ... ({current}/{total})";
+                }
+            );
+        }
+        else
+        {
+            // 로봇 없으면 가짜 딜레이 후 버튼 활성화 (테스트용)
+            StartCoroutine(FakeCleanupDelay());
+        }
+    }
+
+    /// <summary>
+    /// 자동 정리 완료 후 처리
+    /// </summary>
+    private void OnCleanupFinished()
+    {
+        // 정리 완료 - 버튼 활성화, 정리 중 표시 비활성화
+        if (_resultButtonsObject != null)
+        {
+            _resultButtonsObject.SetActive(true);
+        }
+        if (_cleanupWaitObject != null)
+        {
+            _cleanupWaitObject.SetActive(false);
+        }
+        if (_cleanupProgressText != null)
+        {
+            _cleanupProgressText.gameObject.SetActive(false);
+        }
+
+        // 타이머 UI 다시 보이기 (결과창 타이머 시작)
+        if (UIManager._Instance != null)
+        {
+            UIManager._Instance.ShowInactivityTimer();
+        }
+
+        Debug.Log("[PuzzleManager] 자동 정리 완료 - 결과창 타이머 시작");
+
+        // GameManager에 결과창 타이머 시작 알림
+        if (GameManager._Instance != null)
+        {
+            GameManager._Instance.StartResultPanelTimer();
+        }
+    }
+
+    /// <summary>
+    /// 가짜 정리 딜레이 (로봇 없을 때 테스트용)
+    /// </summary>
+    private IEnumerator FakeCleanupDelay()
+    {
+        Debug.Log($"[PuzzleManager] 가짜 정리 시작 ({_fakeCleanupDelay}초 대기)");
+
+        yield return new WaitForSeconds(_fakeCleanupDelay);
+
+        Debug.Log("[PuzzleManager] 가짜 정리 완료");
+
+        // 정리 완료 처리
+        OnCleanupFinished();
+    }
+
+    /// <summary>
     /// 모든 퍼즐 조각 초기화 (슬롯에서 빼고 원래 위치로)
     /// </summary>
     private void ResetAllPuzzlePieces()
@@ -574,5 +749,28 @@ public class PuzzleManager : MonoBehaviour
         // 퍼즐 다시 셔플
         _placedCount = 0;
         ShufflePuzzlePieces();
+    }
+
+    /// <summary>
+    /// 강제 초기화 (GameManager 무입력 타이머 등에 의해 강제 복귀 시 호출)
+    /// 로봇 중지 + 게임 상태 초기화
+    /// </summary>
+    public void EmergencyStop()
+    {
+        _isGameRunning = false;
+        _isGameEnded = true;
+        _waitingForRobotToFinish = false;
+
+        // 로봇 중지
+        StopRobotTeaching();
+
+        // 결과/정리 UI 숨김
+        if (_resultObjectA != null) _resultObjectA.SetActive(false);
+        if (_successObjectB != null) _successObjectB.SetActive(false);
+        if (_failObjectC != null) _failObjectC.SetActive(false);
+        if (_cleanupProgressText != null) _cleanupProgressText.gameObject.SetActive(false);
+        if (_cleanupBlockPanel != null) _cleanupBlockPanel.SetActive(false);
+
+        Debug.Log("[PuzzleManager] EmergencyStop - 로봇 중지 및 상태 초기화");
     }
 }

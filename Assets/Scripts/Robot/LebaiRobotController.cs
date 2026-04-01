@@ -196,14 +196,15 @@ public class LebaiRobotController : MonoBehaviour
     [SerializeField] private bool autoHomeOnConnect = true;  // 연결 시 자동으로 홈 포지션 이동
 
     [Header("속도 설정")]
+    [SerializeField, Range(1f, 20f)] private float gameSpeedMultiplier = 1f;  // 게임 모드 배속 (2 = 2배속, 10+ = 대기시간 거의 제거)
     [SerializeField] private bool slowMode = false;  // true: 모든 티칭 속도 1/3로 감속
     [SerializeField] private Button slowModeToggleButton;  // 슬로우 모드 토글 버튼
     [SerializeField] private TextMeshProUGUI slowModeButtonText;  // 버튼 텍스트 표시
 
     private const float JOINT_LIMIT_DEG = 200f;
 
-    private float velocity = 0.5f;
-    private float acceleration = 1.0f;
+    [SerializeField] private float velocity = 0.5f;      // 기본 속도 (rad/s) - 권장: 0.5~3.0
+    [SerializeField] private float acceleration = 1.0f;  // 기본 가속도 (rad/s²) - 권장: 0.5~5.0
 
     private bool isConnected = false;
     private string baseUrl;
@@ -222,8 +223,12 @@ public class LebaiRobotController : MonoBehaviour
     // 위치 동기화 상태 (Init 후 Connect 시 불필요한 재동기화 방지)
     private bool positionSynced = false;
 
+    // 시작 시 init 완료 여부 (StartupLoadingOverlay용)
+    public bool IsInitComplete { get; private set; } = false;
+
     // 티칭 시스템 상태
     private bool isTeachingRunning = false;
+    public bool IsTeachingRunning => isTeachingRunning; // 외부에서 확인용
     private CancellationTokenSource teachingCancellation;
     private TeachingData currentTeachingData;
     private float teachingStartTime;
@@ -968,6 +973,10 @@ public class LebaiRobotController : MonoBehaviour
                 {
                     await MoveToHomePosition();
                 }
+
+                // Init 완료 (StartupLoadingOverlay에 알림)
+                IsInitComplete = true;
+                WriteLog("[CONNECT] Init 완료 - 오버레이 해제 가능");
             }
             else
             {
@@ -1031,6 +1040,9 @@ public class LebaiRobotController : MonoBehaviour
 
     public void ToggleControlPanel()
     {
+        // 게임 모드 중에는 개발자 패널 열기 차단
+        if (isGameModeTeaching) return;
+
         if (controlPanel != null)
         {
             controlPanel.SetActive(!controlPanel.activeSelf);
@@ -1585,10 +1597,10 @@ public class LebaiRobotController : MonoBehaviour
     /// </summary>
     private string GetTeachingFilePath()
     {
-        string appPath = Application.dataPath;
+        // 에디터: 프로젝트 루트, 빌드: exe 파일과 같은 폴더
         string baseDir = Application.isEditor
-            ? Directory.GetParent(appPath).FullName  // 에디터: 프로젝트 루트
-            : Directory.GetParent(appPath).FullName; // 빌드: exe 파일 위치
+            ? Application.dataPath.Replace("/Assets", "")
+            : Directory.GetParent(Application.dataPath).FullName;
 
         return Path.Combine(baseDir, teachingFileName);
     }
@@ -1609,9 +1621,14 @@ public class LebaiRobotController : MonoBehaviour
         if (teachingActiveIndicator != null)
             teachingActiveIndicator.SetActive(active);
 
-        // 조작 UI 비활성화/활성화 (티칭 중에는 조작 불가)
+        // 조작 UI 비활성화/활성화 (티칭 중에는 조작 불가, 게임 모드에서는 항상 숨김)
         if (affectControlPanel && controlPanel != null)
-            controlPanel.SetActive(!active);
+        {
+            if (isGameModeTeaching)
+                controlPanel.SetActive(false);
+            else
+                controlPanel.SetActive(!active);
+        }
     }
 
     /// <summary>
@@ -1929,6 +1946,7 @@ public class LebaiRobotController : MonoBehaviour
 
         WriteLog("[TEACHING LOOP] 티칭↔리버스 반복 시작");
 
+        // 에디터: 프로젝트 루트, 빌드: exe 파일과 같은 폴더
         string baseDir = Application.isEditor
             ? Application.dataPath.Replace("/Assets", "")
             : Directory.GetParent(Application.dataPath).FullName;
@@ -2064,6 +2082,7 @@ public class LebaiRobotController : MonoBehaviour
         string label = reverse ? "리버스" : "티칭";
         WriteLog($"[TEACHING] 전체 {label} 1~16 순차 실행 시작");
 
+        // 에디터: 프로젝트 루트, 빌드: exe 파일과 같은 폴더
         string baseDir = Application.isEditor
             ? Application.dataPath.Replace("/Assets", "")
             : Directory.GetParent(Application.dataPath).FullName;
@@ -2182,6 +2201,7 @@ public class LebaiRobotController : MonoBehaviour
         // 티칭 UI 활성화
         SetTeachingUIActive(true);
 
+        // 에디터: 프로젝트 루트, 빌드: exe 파일과 같은 폴더
         string baseDir = Application.isEditor
             ? Application.dataPath.Replace("/Assets", "")
             : Directory.GetParent(Application.dataPath).FullName;
@@ -2243,6 +2263,7 @@ public class LebaiRobotController : MonoBehaviour
         SetTeachingUIActive(true);
 
         string fileName = $"robot_teaching_{teachingNumber}.json";
+        // 에디터: 프로젝트 루트, 빌드: exe 파일과 같은 폴더
         string baseDir = Application.isEditor
             ? Application.dataPath.Replace("/Assets", "")
             : Directory.GetParent(Application.dataPath).FullName;
@@ -2357,14 +2378,14 @@ public class LebaiRobotController : MonoBehaviour
     /// <summary>
     /// 개별 티칭 스텝 실행
     /// </summary>
-    private async Task ExecuteTeachingStep(TeachingStep step)
+    private async Task ExecuteTeachingStep(TeachingStep step, float speedMultiplier = 1f)
     {
         WriteLog($"[TEACHING] 스텝 {step.stepNumber} 실행: {step.name}, 타입: {step.action.type}");
 
         switch (step.action.type.ToLower())
         {
             case "move_joint":
-                await ExecuteMoveJoint(step);
+                await ExecuteMoveJoint(step, speedMultiplier);
                 break;
 
             case "set_gripper":
@@ -2376,8 +2397,9 @@ public class LebaiRobotController : MonoBehaviour
                 break;
 
             case "wait":
-                // duration 동안 대기
-                await Task.Delay((int)(step.duration * 1000));
+                // duration 동안 대기 (배속 적용)
+                float waitDuration = step.duration / Mathf.Max(speedMultiplier, 1f);
+                await Task.Delay((int)(waitDuration * 1000));
                 break;
 
             default:
@@ -2389,7 +2411,7 @@ public class LebaiRobotController : MonoBehaviour
     /// <summary>
     /// move_joint 액션 실행 (t 파라미터로 정확한 시간 제어)
     /// </summary>
-    private async Task ExecuteMoveJoint(TeachingStep step)
+    private async Task ExecuteMoveJoint(TeachingStep step, float speedMultiplier = 1f)
     {
         if (step.action.joints == null || step.action.joints.Length < 6)
         {
@@ -2443,8 +2465,8 @@ public class LebaiRobotController : MonoBehaviour
         string vStr = v.ToString("F2", culture);
         string aStr = a.ToString("F2", culture);
 
-        // t 파라미터: duration을 사용하여 정확한 시간 제어 (슬로우 모드: 3배)
-        float t = slowMode ? step.duration * 3f : step.duration;
+        // t 파라미터: duration을 사용하여 정확한 시간 제어 (슬로우 모드: 3배, 배속 적용)
+        float t = slowMode ? step.duration * 3f : step.duration / Mathf.Max(speedMultiplier, 1f);
         string tStr = t.ToString("F2", culture);
 
         // move_joint with t parameter (시간 기반 이동)
@@ -2504,15 +2526,27 @@ public class LebaiRobotController : MonoBehaviour
         int pin = step.action.pin;
         int value = step.action.value;
 
+        // 밸브(pin 0) 신호 반전 - 모터 교체로 배선이 바뀌어 ON/Blow가 뒤집힘
+        if (pin == 0)
+            value = (value == 0) ? 1 : 0;
+
         // device 파라미터 없이 pin과 value만 전송 (버큠 그리퍼용)
         string paramsJson = $"[{{\"pin\": {pin}, \"value\": {value}}}]";
         WriteLog($"[TEACHING] set_do 전송 (pin={pin}, value={value}): {paramsJson}");
         await SendJsonRpc("set_do", paramsJson);
 
-        // DO 동작 대기 (duration만큼)
-        if (step.duration > 0)
+        // 밸브(pin 0) 동작 시 최소 시간 보장 - 흡착 1초, 블로우 0.2초
+        float duration = step.duration;
+        if (pin == 0)
         {
-            await Task.Delay((int)(step.duration * 1000));
+            float minDuration = (value == 1) ? 1.0f : 0.2f;  // 반전 후: 1=흡착(ON), 0=블로우
+            if (duration < minDuration)
+                duration = minDuration;
+        }
+
+        if (duration > 0)
+        {
+            await Task.Delay((int)(duration * 1000));
         }
     }
 
@@ -2532,21 +2566,21 @@ public class LebaiRobotController : MonoBehaviour
             return;
         }
 
-        WriteLog("[VACUUM] ON 요청 - 진공펌프 ON, 밸브 OFF");
+        WriteLog("[VACUUM] ON 요청 - 진공펌프 ON, 밸브 ON");
 
         // DO_1 = 1 (진공 펌프 ON)
         string paramsJson1 = $"[{{\"pin\": 1, \"value\": 1}}]";
         string response1 = await SendJsonRpc("set_do", paramsJson1);
 
-        // DO_0 = 0 (밸브 OFF)
-        string paramsJson0 = $"[{{\"pin\": 0, \"value\": 0}}]";
+        // DO_0 = 1 (밸브 ON - 모터 교체로 인해 반전)
+        string paramsJson0 = $"[{{\"pin\": 0, \"value\": 1}}]";
         string response0 = await SendJsonRpc("set_do", paramsJson0);
 
         if (response1 != null && response1.Contains("result") &&
             response0 != null && response0.Contains("result"))
         {
             isVacuumOn = true;
-            WriteLog("[VACUUM] ON 성공 (DO_1=1, DO_0=0)");
+            WriteLog("[VACUUM] ON 성공 (DO_1=1, DO_0=1)");
         }
         else
         {
@@ -2604,20 +2638,20 @@ public class LebaiRobotController : MonoBehaviour
             return;
         }
 
-        WriteLog("[VACUUM] 배출 요청 - 진공펌프 ON, 밸브 ON");
+        WriteLog("[VACUUM] 배출 요청 - 진공펌프 ON, 밸브 OFF");
 
         // DO_1 = 1 (진공 펌프 ON)
         string paramsJson1 = $"[{{\"pin\": 1, \"value\": 1}}]";
         string response1 = await SendJsonRpc("set_do", paramsJson1);
 
-        // DO_0 = 1 (밸브 ON - 공기 배출)
-        string paramsJson0 = $"[{{\"pin\": 0, \"value\": 1}}]";
+        // DO_0 = 0 (밸브 OFF - 모터 교체로 인해 반전)
+        string paramsJson0 = $"[{{\"pin\": 0, \"value\": 0}}]";
         string response0 = await SendJsonRpc("set_do", paramsJson0);
 
         if (response1 != null && response1.Contains("result") &&
             response0 != null && response0.Contains("result"))
         {
-            WriteLog("[VACUUM] 배출 성공 (DO_1=1, DO_0=1)");
+            WriteLog("[VACUUM] 배출 성공 (DO_1=1, DO_0=0)");
         }
         else
         {
@@ -2689,10 +2723,10 @@ public class LebaiRobotController : MonoBehaviour
     /// </summary>
     private async Task ExecuteCleanupTeaching()
     {
-        string appPath = Application.dataPath;
+        // 에디터: 프로젝트 루트, 빌드: exe 파일과 같은 폴더
         string baseDir = Application.isEditor
-            ? Directory.GetParent(appPath).FullName
-            : Directory.GetParent(appPath).FullName;
+            ? Application.dataPath.Replace("/Assets", "")
+            : Directory.GetParent(Application.dataPath).FullName;
 
         string filePath = Path.Combine(baseDir, "robot_cleanup.json");
         WriteLog($"[CLEANUP] 파일 로드 시도: {filePath}");
@@ -2753,6 +2787,7 @@ public class LebaiRobotController : MonoBehaviour
     /// </summary>
     public float GetTeachingDuration()
     {
+        // 에디터: 프로젝트 루트, 빌드: exe 파일과 같은 폴더
         string baseDir = Application.isEditor
             ? Application.dataPath.Replace("/Assets", "")
             : Directory.GetParent(Application.dataPath).FullName;
@@ -2959,14 +2994,18 @@ public class LebaiRobotController : MonoBehaviour
     /// </summary>
     public void StartGameTeachings(System.Action onComplete = null)
     {
+        // 게임 모드 진입 시 개발자 전용 컨트롤 패널 강제 숨김
+        if (controlPanel != null)
+            controlPanel.SetActive(false);
+
         _onTeachingComplete = onComplete;
         lastCompletedTeachingNumber = 0;
         stopAfterCurrentTeaching = false;
 
         if (!isConnected)
         {
-            WriteLog("[GAME TEACHING] 로봇 연결 안됨 - 스킵");
-            _onTeachingComplete?.Invoke();
+            WriteLog("[GAME TEACHING] 로봇 연결 안됨 - 스킵 (콜백 호출 안 함)");
+            // 안전장치: 로봇 연결 안됨 - 콜백 호출하지 않음 (게임이 즉시 종료되는 것 방지)
             _onTeachingComplete = null;
             return;
         }
@@ -2999,12 +3038,12 @@ public class LebaiRobotController : MonoBehaviour
     /// <summary>
     /// 게임 모드: 완료된 티칭만 리버스 정리 (1~N번)
     /// </summary>
-    public void StartGameCleanup(System.Action onComplete)
+    public void StartGameCleanup(System.Action onComplete, System.Action<int, int> onProgress = null)
     {
-        _ = StartGameCleanupAsync(onComplete);
+        _ = StartGameCleanupAsync(onComplete, onProgress);
     }
 
-    private async Task StartGameCleanupAsync(System.Action onComplete)
+    private async Task StartGameCleanupAsync(System.Action onComplete, System.Action<int, int> onProgress = null)
     {
         // 현재 티칭이 끝날 때까지 대기 (graceful stop 후 호출되므로)
         if (isTeachingRunning)
@@ -3034,7 +3073,7 @@ public class LebaiRobotController : MonoBehaviour
         }
 
         WriteLog($"[GAME CLEANUP] 리버스 1~{cleanupCount} 정리 시작");
-        _ = RunGameCleanupSequential(cleanupCount, onComplete);
+        _ = RunGameCleanupSequential(cleanupCount, onComplete, onProgress);
     }
 
     /// <summary>
@@ -3055,6 +3094,14 @@ public class LebaiRobotController : MonoBehaviour
         isTeachingRunning = true;
         allTeachingsStartTime = Time.time;
 
+        // 게임 시작 시 진공펌프 ON (전원 드롭 방지를 위해 게임 내내 유지)
+        WriteLog("[GAME TEACHING] 진공펌프 ON (게임 시작)");
+        await SendJsonRpc("set_do", "[{\"pin\": 1, \"value\": 1}]");
+
+        // 밸브를 블로우 상태로 초기화 (이동 중 의도치 않은 흡착 방지, 모터 교체로 반전)
+        await SendJsonRpc("set_do", "[{\"pin\": 0, \"value\": 0}]");
+
+        // 에디터: 프로젝트 루트, 빌드: exe 파일과 같은 폴더
         string baseDir = Application.isEditor
             ? Application.dataPath.Replace("/Assets", "")
             : Directory.GetParent(Application.dataPath).FullName;
@@ -3096,12 +3143,15 @@ public class LebaiRobotController : MonoBehaviour
                 teachingStartTime = Time.time;
                 currentTeachingData.steps.Sort((a, b) => a.time.CompareTo(b.time));
 
+                float speedMul = Mathf.Max(gameSpeedMultiplier, 1f);
+
                 foreach (var step in currentTeachingData.steps)
                 {
                     if (teachingCancellation.Token.IsCancellationRequested) break;
 
+                    float scaledStepTime = step.time / speedMul;
                     float elapsedTime = Time.time - teachingStartTime;
-                    float waitTime = step.time - elapsedTime;
+                    float waitTime = scaledStepTime - elapsedTime;
 
                     if (waitTime > 0)
                     {
@@ -3111,7 +3161,7 @@ public class LebaiRobotController : MonoBehaviour
                     if (teachingCancellation.Token.IsCancellationRequested) break;
 
                     WriteLog($"[GAME TEACHING] 리버스 [{i}/16] 스텝 {step.stepNumber}: {step.name}");
-                    await ExecuteTeachingStep(step);
+                    await ExecuteTeachingStep(step, speedMul);
                 }
 
                 if (teachingCancellation.Token.IsCancellationRequested) break;
@@ -3120,10 +3170,11 @@ public class LebaiRobotController : MonoBehaviour
                 lastCompletedTeachingNumber = i;
                 WriteLog($"[GAME TEACHING] 리버스 [{i}/16] 완료 (누적 완료: {lastCompletedTeachingNumber}번)");
 
-                // 다음 티칭 전 1초 대기
+                // 다음 티칭 전 대기 (배속 적용)
                 if (i < 16 && !stopAfterCurrentTeaching)
                 {
-                    await Task.Delay(1000, teachingCancellation.Token);
+                    int delayMs = (int)(1000 / speedMul);
+                    await Task.Delay(delayMs, teachingCancellation.Token);
                 }
             }
             catch (OperationCanceledException)
@@ -3141,35 +3192,64 @@ public class LebaiRobotController : MonoBehaviour
         float totalElapsed = Time.time - allTeachingsStartTime;
         WriteLog($"[GAME TEACHING] 종료 (완료: {lastCompletedTeachingNumber}번까지, 총 {totalElapsed:F1}초)");
 
+        // 마지막 퍼즐 배출: 블로우 1초 + J2 올리기 (퍼즐 끌고가기 방지)
+        WriteLog("[GAME TEACHING] 마지막 퍼즐 배출 - 블로우 시작");
+        await SendJsonRpc("set_do", "[{\"pin\": 0, \"value\": 0}]");  // 밸브 블로우 (모터 교체로 반전)
+        await Task.Delay(1000);  // 1초 배출 대기
+
+        // 현재 로봇 관절 위치 동기화 (슬라이더 값을 실제 위치로 맞춤)
+        await GetCurrentJointPositionsAsync();
+
+        // J2만 -90도로 올리기 (나머지 축은 현재 위치 유지)
+        WriteLog("[GAME TEACHING] J2만 올리기 (-90도)");
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        string liftParams = $"[{{\"pose\": {{\"kind\": 1, \"joint\": {{\"joint\": [{string.Format(culture, "{0:F6}, {1:F6}, {2:F6}, {3:F6}, {4:F6}, {5:F6}", sliders[0].value * Mathf.Deg2Rad, -90f * Mathf.Deg2Rad, sliders[2].value * Mathf.Deg2Rad, sliders[3].value * Mathf.Deg2Rad, sliders[4].value * Mathf.Deg2Rad, sliders[5].value * Mathf.Deg2Rad)}]}}}}), \"param\": {{\"velocity\": 5.00, \"acc\": 8.00, \"t\": 1.50}}}}]";
+        await SendJsonRpc("move_joint", liftParams);
+        await WaitUntilRobotIdle();
+
+        // 게임 종료 시 진공펌프 OFF
+        WriteLog("[GAME TEACHING] 진공펌프 OFF (게임 종료)");
+        await SendJsonRpc("set_do", "[{\"pin\": 1, \"value\": 0}]");
+        await SendJsonRpc("set_do", "[{\"pin\": 0, \"value\": 1}]");  // 밸브 OFF (모터 교체로 반전)
+
         isTeachingRunning = false;
         isGameModeTeaching = false;
         stopAfterCurrentTeaching = false;
 
-        _onTeachingComplete?.Invoke();
+        // 안전장치: 티칭이 하나도 완료되지 않았으면 콜백 호출하지 않음
+        if (lastCompletedTeachingNumber > 0)
+        {
+            _onTeachingComplete?.Invoke();
+        }
+        else
+        {
+            WriteLog($"[GAME TEACHING] 경고: 완료된 티칭이 없음 - 콜백 호출 안 함");
+        }
         _onTeachingComplete = null;
     }
 
     /// <summary>
     /// 게임 모드 리버스 정리 순차 실행 (내부)
     /// </summary>
-    private async Task RunGameCleanupSequential(int count, System.Action onComplete)
+    private async Task RunGameCleanupSequential(int count, System.Action onComplete, System.Action<int, int> onProgress = null)
     {
         isGameModeTeaching = true;
         teachingCancellation = new CancellationTokenSource();
         isTeachingRunning = true;
         allTeachingsStartTime = Time.time;
 
-        // 정리중 UI 표시
-        if (teachingStatusText != null)
-        {
-            teachingStatusText.gameObject.SetActive(true);
-            teachingStatusText.text = $"정리중... (티칭 1~{count})";
-        }
+        // 정리중 UI - 게임 모드에서는 표시 안 함
         if (teachingActiveIndicator != null)
             teachingActiveIndicator.SetActive(true);
 
         WriteLog($"[GAME CLEANUP] 티칭 1~{count} 순차 실행 시작");
 
+        // 정리 시작 시 진공펌프 ON (전원 드롭 방지를 위해 정리 내내 유지)
+        WriteLog("[GAME CLEANUP] 진공펌프 ON (정리 시작)");
+        await SendJsonRpc("set_do", "[{\"pin\": 1, \"value\": 1}]");
+        await SendJsonRpc("set_do", "[{\"pin\": 0, \"value\": 0}]");  // 밸브 블로우 상태 (모터 교체로 반전)
+
+        // 에디터: 프로젝트 루트, 빌드: exe 파일과 같은 폴더
         string baseDir = Application.isEditor
             ? Application.dataPath.Replace("/Assets", "")
             : Directory.GetParent(Application.dataPath).FullName;
@@ -3199,9 +3279,9 @@ public class LebaiRobotController : MonoBehaviour
                 }
 
                 WriteLog($"[GAME CLEANUP] 티칭 [{i}/{count}] 시작: {currentTeachingData.name}");
-                if (teachingStatusText != null)
-                    teachingStatusText.text = $"정리중... ({i}/{count})";
+                onProgress?.Invoke(i, count);
 
+                float speedMul = Mathf.Max(gameSpeedMultiplier, 1f);
                 teachingStartTime = Time.time;
                 currentTeachingData.steps.Sort((a, b) => a.time.CompareTo(b.time));
 
@@ -3209,8 +3289,9 @@ public class LebaiRobotController : MonoBehaviour
                 {
                     if (teachingCancellation.Token.IsCancellationRequested) break;
 
+                    float scaledStepTime = step.time / speedMul;
                     float elapsedTime = Time.time - teachingStartTime;
-                    float waitTime = step.time - elapsedTime;
+                    float waitTime = scaledStepTime - elapsedTime;
 
                     if (waitTime > 0)
                     {
@@ -3220,17 +3301,18 @@ public class LebaiRobotController : MonoBehaviour
                     if (teachingCancellation.Token.IsCancellationRequested) break;
 
                     WriteLog($"[GAME CLEANUP] 티칭 [{i}/{count}] 스텝 {step.stepNumber}: {step.name}");
-                    await ExecuteTeachingStep(step);
+                    await ExecuteTeachingStep(step, speedMul);
                 }
 
                 if (teachingCancellation.Token.IsCancellationRequested) break;
 
                 WriteLog($"[GAME CLEANUP] 티칭 [{i}/{count}] 완료");
 
-                // 다음 리버스 전 1초 대기
+                // 다음 리버스 전 대기 (배속 적용)
                 if (i < count)
                 {
-                    await Task.Delay(1000, teachingCancellation.Token);
+                    int delayMs = (int)(1000 / speedMul);
+                    await Task.Delay(delayMs, teachingCancellation.Token);
                 }
             }
             catch (OperationCanceledException)
@@ -3247,6 +3329,11 @@ public class LebaiRobotController : MonoBehaviour
 
         float totalElapsed = Time.time - allTeachingsStartTime;
         WriteLog($"[GAME CLEANUP] 정리 완료 (총 {totalElapsed:F1}초)");
+
+        // 정리 완료 시 진공펌프 OFF
+        WriteLog("[GAME CLEANUP] 진공펌프 OFF (정리 완료)");
+        await SendJsonRpc("set_do", "[{\"pin\": 1, \"value\": 0}]");
+        await SendJsonRpc("set_do", "[{\"pin\": 0, \"value\": 1}]");  // 밸브 OFF (모터 교체로 반전)
 
         // 홈 포지션으로 복귀
         if (teachingStatusText != null)

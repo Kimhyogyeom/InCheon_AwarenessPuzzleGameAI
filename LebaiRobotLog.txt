@@ -1,25 +1,20 @@
-[2026-02-04 14:05:43.545] === Lebai Robot Controller 시작 (HTTP JSON-RPC) ===
-[2026-02-04 14:05:43.562] [INIT] btnGripperPosLeft 연결됨: ButtonLeft
-[2026-02-04 14:05:43.563] [INIT] btnGripperPosRight 연결됨: ButtonRight
-[2026-02-04 14:05:43.563] [INIT] btnGripperForceLeft 연결됨: ButtonLeft
-[2026-02-04 14:05:43.564] [INIT] btnGripperForceRight 연결됨: ButtonRight
-[2026-02-04 14:05:43.564] [INIT] gripperPositionSlider 연결됨: SliderPosition
-[2026-02-04 14:05:43.565] [INIT] gripperForceSlider 연결됨: SliderForce
-[2026-02-04 14:05:43.566] [INIT] teachingButton 연결됨
-[2026-02-04 14:05:43.566] [INIT] stopTeachingButton 연결됨
-[2026-02-04 14:05:43.567] [INIT] btnVacuumOn 연결됨
-[2026-02-04 14:05:43.567] [INIT] btnVacuumOff 연결됨
-[2026-02-04 14:05:43.569] [STATUS] 연결 안됨
-[2026-02-04 14:05:43.571] [TEACHING] 대기 중
-[2026-02-04 14:05:43.571] [INIT] 자동 연결 시도...
-[2026-02-04 14:05:43.574] [STATUS] 로봇 검색 중...
-[2026-02-04 14:05:43.577] [SCAN] IP 스캔 시작: 192.168.0.1 ~ 192.168.0.20
-[2026-02-04 14:05:45.202] [SCAN] 로봇을 찾지 못함
-[2026-02-04 14:05:45.202] [CONNECT] 자동 스캔 실패 - 로봇을 찾을 수 없음
-[2026-02-04 14:05:45.204] [STATUS] 로봇을 찾을 수 없음
-[2026-02-04 14:05:53.996] [TEACHING] GetTeachingDuration: 리버스 1~16 총 288.6초 (16개 로드)
-[2026-02-04 14:05:53.998] [GAME TEACHING] 로봇 연결 안됨 - 스킵
-[2026-02-04 14:05:53.999] [GAME TEACHING] 실행 중이 아님
-[2026-02-04 14:05:56.757] [GAME TEACHING] 실행 중이 아님
-[2026-02-04 14:05:56.759] [GAME CLEANUP] 정리할 티칭 없음 (완료된 티칭 0개)
-[2026-02-04 14:05:59.445] === Lebai Robot Controller 종료 ===
+[2026-03-30 10:20:39.585] === Lebai Robot Controller 시작 (HTTP JSON-RPC) ===
+[2026-03-30 10:20:39.603] [INIT] btnGripperPosLeft 연결됨: ButtonLeft
+[2026-03-30 10:20:39.603] [INIT] btnGripperPosRight 연결됨: ButtonRight
+[2026-03-30 10:20:39.604] [INIT] btnGripperForceLeft 연결됨: ButtonLeft
+[2026-03-30 10:20:39.604] [INIT] btnGripperForceRight 연결됨: ButtonRight
+[2026-03-30 10:20:39.604] [INIT] gripperPositionSlider 연결됨: SliderPosition
+[2026-03-30 10:20:39.606] [INIT] gripperForceSlider 연결됨: SliderForce
+[2026-03-30 10:20:39.606] [INIT] teachingButton 연결됨
+[2026-03-30 10:20:39.607] [INIT] stopTeachingButton 연결됨
+[2026-03-30 10:20:39.608] [INIT] btnVacuumOn 연결됨
+[2026-03-30 10:20:39.608] [INIT] btnVacuumOff 연결됨
+[2026-03-30 10:20:39.610] [STATUS] 연결 안됨
+[2026-03-30 10:20:39.612] [TEACHING] 대기 중
+[2026-03-30 10:20:39.612] [INIT] 자동 연결 시도...
+[2026-03-30 10:20:39.615] [STATUS] 로봇 검색 중...
+[2026-03-30 10:20:39.617] [SCAN] IP 스캔 시작: 192.168.0.1 ~ 192.168.0.20
+[2026-03-30 10:20:41.152] [SCAN] 로봇을 찾지 못함
+[2026-03-30 10:20:41.152] [CONNECT] 자동 스캔 실패 - 로봇을 찾을 수 없음
+[2026-03-30 10:20:41.154] [STATUS] 로봇을 찾을 수 없음
+[2026-03-30 10:20:41.885] === Lebai Robot Controller 종료 ===

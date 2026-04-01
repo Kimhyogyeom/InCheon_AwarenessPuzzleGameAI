@@ -17,15 +17,26 @@ public class SoundManager : MonoBehaviour
     [Header("시작 BGM")]
     [SerializeField] private AudioClip _startBGM;
 
+    [Header("BGM 이름 설정")]
+    [SerializeField] private string _defaultBGMName = "DefaultBGM"; // 기본 BGM (Ready, Description, Puzzle, 결과창)
+    [SerializeField] private string _gameBGMName = "GameBGM";       // 인게임 BGM
+
     [Header("볼륨 설정")]
     [Range(0f, 1f)]
     [SerializeField] private float _bgmVolume = 1f;
+    [Range(0f, 1f)]
+    [SerializeField] private float _defaultBGMVolume = 1f; // 기본 BGM 볼륨 배율
+    [Range(0f, 1f)]
+    [SerializeField] private float _gameBGMVolume = 1f;    // 인게임 BGM 볼륨 배율
     [Range(0f, 1f)]
     [SerializeField] private float _sfxVolume = 1f;
 
     // 음소거 상태
     private bool _isBgmMuted = false;
     private bool _isSfxMuted = false;
+
+    // 현재 재생 중인 BGM 이름 (중복 재생 방지용)
+    private string _currentBGMName = "";
 
     void Awake()
     {
@@ -71,14 +82,25 @@ public class SoundManager : MonoBehaviour
     /// </summary>
     public void PlayBGM(string name)
     {
+        PlayBGM(name, 1f);
+    }
+
+    /// <summary>
+    /// BGM 재생 (이름으로, 볼륨 배율 지정)
+    /// </summary>
+    public void PlayBGM(string name, float volumeMultiplier)
+    {
         if (_soundData == null) return;
 
         var sound = _soundData.GetBGM(name);
         if (sound == null || sound.clip == null) return;
 
         _bgmSource.clip = sound.clip;
-        _bgmSource.volume = _isBgmMuted ? 0f : _bgmVolume * sound.volume;
+        _bgmSource.volume = _isBgmMuted ? 0f : _bgmVolume * sound.volume * volumeMultiplier;
         _bgmSource.Play();
+
+        // 현재 재생 중인 BGM 이름 저장
+        _currentBGMName = name;
     }
 
     /// <summary>
@@ -145,6 +167,34 @@ public class SoundManager : MonoBehaviour
     {
         _isBgmMuted = mute;
         _bgmSource.volume = _isBgmMuted ? 0f : _bgmVolume;
+    }
+
+    /// <summary>
+    /// 기본 BGM 재생 (Ready, Description, Puzzle, 결과창)
+    /// </summary>
+    public void PlayDefaultBGM()
+    {
+        // 이미 같은 BGM이 재생 중이면 무시
+        if (_currentBGMName == _defaultBGMName)
+        {
+            return;
+        }
+
+        PlayBGM(_defaultBGMName, _defaultBGMVolume);
+    }
+
+    /// <summary>
+    /// 인게임 BGM 재생
+    /// </summary>
+    public void PlayGameBGM()
+    {
+        // 이미 같은 BGM이 재생 중이면 무시
+        if (_currentBGMName == _gameBGMName)
+        {
+            return;
+        }
+
+        PlayBGM(_gameBGMName, _gameBGMVolume);
     }
 
     #endregion
