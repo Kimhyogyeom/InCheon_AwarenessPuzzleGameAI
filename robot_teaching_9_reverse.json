@@ -1,12 +1,12 @@
 ﻿{
     "name":  "티칭 9 리버스 - 퍼즐 되돌리기",
     "description":  "단순화된 퍼즐 되돌리기",
-    "totalDuration":  6.2,
+    "totalDuration":  6.7,
     "steps":  [
                   {
                       "stepNumber":  1,
                       "name":  "DST 위치로 이동 (J2 -25.9)",
-                      "time":  0.0,
+                      "time":  0,
                       "duration":  1,
                       "action":  {
                                      "type":  "move_joint",
@@ -25,7 +25,7 @@
                   {
                       "stepNumber":  2,
                       "name":  "DST 최종 하강",
-                      "time":  1.0,
+                      "time":  1,
                       "duration":  0.5,
                       "action":  {
                                      "type":  "move_joint",
@@ -64,7 +64,7 @@
                   {
                       "stepNumber":  5,
                       "name":  "대기 (2초) - 흡착 대기",
-                      "time":  2.0,
+                      "time":  2,
                       "duration":  2,
                       "action":  {
                                      "type":  "wait"
@@ -72,21 +72,21 @@
                   },
                   {
                       "stepNumber":  6,
-                      "name":  "DST 리프트 (5도)",
-                      "time":  4.0,
+                      "name":  "J2 리프트 (이동 준비)",
+                      "time":  4,
                       "duration":  0.5,
                       "action":  {
                                      "type":  "move_joint",
                                      "joints":  [
                                                     32.2,
-                                                    -21.2,
+                                                    -25.9,
                                                     30.0,
                                                     -16.92,
                                                     -36.8,
                                                     0.8
                                                 ],
-                                     "velocity":  5.0,
-                                     "acceleration":  8.0
+                                     "velocity":  5,
+                                     "acceleration":  8
                                  }
                   },
                   {
@@ -136,6 +136,25 @@
                                      "type":  "set_do",
                                      "pin":  0,
                                      "value":  1
+                                 }
+                  },
+                  {
+                      "stepNumber":  10,
+                      "name":  "J2 리프트 (완료)",
+                      "time":  6.2,
+                      "duration":  0.5,
+                      "action":  {
+                                     "type":  "move_joint",
+                                     "joints":  [
+                                                    70.1,
+                                                    -58.2,
+                                                    97.3,
+                                                    -32.12,
+                                                    0,
+                                                    -15.2
+                                                ],
+                                     "velocity":  5,
+                                     "acceleration":  8
                                  }
                   }
               ]

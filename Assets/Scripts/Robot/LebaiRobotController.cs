@@ -2530,10 +2530,31 @@ public class LebaiRobotController : MonoBehaviour
         if (pin == 0)
             value = (value == 0) ? 1 : 0;
 
-        // device 파라미터 없이 pin과 value만 전송 (버큠 그리퍼용)
         string paramsJson = $"[{{\"pin\": {pin}, \"value\": {value}}}]";
-        WriteLog($"[TEACHING] set_do 전송 (pin={pin}, value={value}): {paramsJson}");
-        await SendJsonRpc("set_do", paramsJson);
+
+        // 밸브(pin 0) 제어 시 펌프(pin 1)도 같이 토글
+        // 흡착(value=1)이면 펌프 먼저 ON 후 밸브 ON, 블로우/OFF(value=0)면 밸브 먼저 OFF 후 펌프 OFF
+        if (pin == 0)
+        {
+            string pumpParams = $"[{{\"pin\": 1, \"value\": {value}}}]";
+            if (value == 1)
+            {
+                WriteLog($"[TEACHING] set_do 흡착: 펌프 ON → 밸브 ON (value={value})");
+                await SendJsonRpc("set_do", pumpParams);
+                await SendJsonRpc("set_do", paramsJson);
+            }
+            else
+            {
+                WriteLog($"[TEACHING] set_do 블로우/OFF: 밸브 OFF → 펌프 OFF (value={value})");
+                await SendJsonRpc("set_do", paramsJson);
+                await SendJsonRpc("set_do", pumpParams);
+            }
+        }
+        else
+        {
+            WriteLog($"[TEACHING] set_do 전송 (pin={pin}, value={value}): {paramsJson}");
+            await SendJsonRpc("set_do", paramsJson);
+        }
 
         // 밸브(pin 0) 동작 시 최소 시간 보장 - 흡착 1초, 블로우 0.2초
         float duration = step.duration;
@@ -3094,12 +3115,10 @@ public class LebaiRobotController : MonoBehaviour
         isTeachingRunning = true;
         allTeachingsStartTime = Time.time;
 
-        // 게임 시작 시 진공펌프 ON (전원 드롭 방지를 위해 게임 내내 유지)
-        WriteLog("[GAME TEACHING] 진공펌프 ON (게임 시작)");
-        await SendJsonRpc("set_do", "[{\"pin\": 1, \"value\": 1}]");
-
-        // 밸브를 블로우 상태로 초기화 (이동 중 의도치 않은 흡착 방지, 모터 교체로 반전)
-        await SendJsonRpc("set_do", "[{\"pin\": 0, \"value\": 0}]");
+        // 게임 시작 시 펌프/밸브 모두 OFF로 초기화 (흡착 시점에만 같이 켜짐)
+        WriteLog("[GAME TEACHING] 펌프/밸브 OFF 초기화 (게임 시작)");
+        await SendJsonRpc("set_do", "[{\"pin\": 0, \"value\": 0}]");  // 밸브 OFF (반전 후 블로우 방향)
+        await SendJsonRpc("set_do", "[{\"pin\": 1, \"value\": 0}]");  // 펌프 OFF
 
         // 에디터: 프로젝트 루트, 빌드: exe 파일과 같은 폴더
         string baseDir = Application.isEditor
@@ -3192,10 +3211,11 @@ public class LebaiRobotController : MonoBehaviour
         float totalElapsed = Time.time - allTeachingsStartTime;
         WriteLog($"[GAME TEACHING] 종료 (완료: {lastCompletedTeachingNumber}번까지, 총 {totalElapsed:F1}초)");
 
-        // 마지막 퍼즐 배출: 블로우 1초 + J2 올리기 (퍼즐 끌고가기 방지)
-        WriteLog("[GAME TEACHING] 마지막 퍼즐 배출 - 블로우 시작");
-        await SendJsonRpc("set_do", "[{\"pin\": 0, \"value\": 0}]");  // 밸브 블로우 (모터 교체로 반전)
-        await Task.Delay(1000);  // 1초 배출 대기
+        // 마지막 퍼즐 배출: 밸브 OFF → 펌프 OFF + 1초 대기 + J2 올리기 (퍼즐 끌고가기 방지)
+        WriteLog("[GAME TEACHING] 마지막 퍼즐 배출 - 밸브/펌프 OFF");
+        await SendJsonRpc("set_do", "[{\"pin\": 0, \"value\": 0}]");  // 밸브 OFF (반전 후 블로우 방향)
+        await SendJsonRpc("set_do", "[{\"pin\": 1, \"value\": 0}]");  // 펌프 OFF (밸브와 같이 토글)
+        await Task.Delay(1000);  // 1초 대기
 
         // 현재 로봇 관절 위치 동기화 (슬라이더 값을 실제 위치로 맞춤)
         await GetCurrentJointPositionsAsync();
@@ -3244,10 +3264,10 @@ public class LebaiRobotController : MonoBehaviour
 
         WriteLog($"[GAME CLEANUP] 티칭 1~{count} 순차 실행 시작");
 
-        // 정리 시작 시 진공펌프 ON (전원 드롭 방지를 위해 정리 내내 유지)
-        WriteLog("[GAME CLEANUP] 진공펌프 ON (정리 시작)");
-        await SendJsonRpc("set_do", "[{\"pin\": 1, \"value\": 1}]");
-        await SendJsonRpc("set_do", "[{\"pin\": 0, \"value\": 0}]");  // 밸브 블로우 상태 (모터 교체로 반전)
+        // 정리 시작 시 펌프/밸브 모두 OFF로 초기화 (흡착 시점에만 같이 켜짐)
+        WriteLog("[GAME CLEANUP] 펌프/밸브 OFF 초기화 (정리 시작)");
+        await SendJsonRpc("set_do", "[{\"pin\": 0, \"value\": 0}]");  // 밸브 OFF (반전 후 블로우 방향)
+        await SendJsonRpc("set_do", "[{\"pin\": 1, \"value\": 0}]");  // 펌프 OFF
 
         // 에디터: 프로젝트 루트, 빌드: exe 파일과 같은 폴더
         string baseDir = Application.isEditor

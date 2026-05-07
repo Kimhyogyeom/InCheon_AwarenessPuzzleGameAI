@@ -1,20 +1,20 @@
-[2026-03-30 10:20:39.585] === Lebai Robot Controller 시작 (HTTP JSON-RPC) ===
-[2026-03-30 10:20:39.603] [INIT] btnGripperPosLeft 연결됨: ButtonLeft
-[2026-03-30 10:20:39.603] [INIT] btnGripperPosRight 연결됨: ButtonRight
-[2026-03-30 10:20:39.604] [INIT] btnGripperForceLeft 연결됨: ButtonLeft
-[2026-03-30 10:20:39.604] [INIT] btnGripperForceRight 연결됨: ButtonRight
-[2026-03-30 10:20:39.604] [INIT] gripperPositionSlider 연결됨: SliderPosition
-[2026-03-30 10:20:39.606] [INIT] gripperForceSlider 연결됨: SliderForce
-[2026-03-30 10:20:39.606] [INIT] teachingButton 연결됨
-[2026-03-30 10:20:39.607] [INIT] stopTeachingButton 연결됨
-[2026-03-30 10:20:39.608] [INIT] btnVacuumOn 연결됨
-[2026-03-30 10:20:39.608] [INIT] btnVacuumOff 연결됨
-[2026-03-30 10:20:39.610] [STATUS] 연결 안됨
-[2026-03-30 10:20:39.612] [TEACHING] 대기 중
-[2026-03-30 10:20:39.612] [INIT] 자동 연결 시도...
-[2026-03-30 10:20:39.615] [STATUS] 로봇 검색 중...
-[2026-03-30 10:20:39.617] [SCAN] IP 스캔 시작: 192.168.0.1 ~ 192.168.0.20
-[2026-03-30 10:20:41.152] [SCAN] 로봇을 찾지 못함
-[2026-03-30 10:20:41.152] [CONNECT] 자동 스캔 실패 - 로봇을 찾을 수 없음
-[2026-03-30 10:20:41.154] [STATUS] 로봇을 찾을 수 없음
-[2026-03-30 10:20:41.885] === Lebai Robot Controller 종료 ===
+[2026-04-13 16:33:09.496] === Lebai Robot Controller 시작 (HTTP JSON-RPC) ===
+[2026-04-13 16:33:09.527] [INIT] btnGripperPosLeft 연결됨: ButtonLeft
+[2026-04-13 16:33:09.528] [INIT] btnGripperPosRight 연결됨: ButtonRight
+[2026-04-13 16:33:09.529] [INIT] btnGripperForceLeft 연결됨: ButtonLeft
+[2026-04-13 16:33:09.529] [INIT] btnGripperForceRight 연결됨: ButtonRight
+[2026-04-13 16:33:09.530] [INIT] gripperPositionSlider 연결됨: SliderPosition
+[2026-04-13 16:33:09.531] [INIT] gripperForceSlider 연결됨: SliderForce
+[2026-04-13 16:33:09.531] [INIT] teachingButton 연결됨
+[2026-04-13 16:33:09.532] [INIT] stopTeachingButton 연결됨
+[2026-04-13 16:33:09.533] [INIT] btnVacuumOn 연결됨
+[2026-04-13 16:33:09.533] [INIT] btnVacuumOff 연결됨
+[2026-04-13 16:33:09.537] [STATUS] 연결 안됨
+[2026-04-13 16:33:09.538] [TEACHING] 대기 중
+[2026-04-13 16:33:09.539] [INIT] 자동 연결 시도...
+[2026-04-13 16:33:09.542] [STATUS] 로봇 검색 중...
+[2026-04-13 16:33:09.544] [SCAN] IP 스캔 시작: 192.168.0.1 ~ 192.168.0.20
+[2026-04-13 16:33:11.738] [SCAN] 로봇을 찾지 못함
+[2026-04-13 16:33:11.739] [CONNECT] 자동 스캔 실패 - 로봇을 찾을 수 없음
+[2026-04-13 16:33:11.740] [STATUS] 로봇을 찾을 수 없음
+[2026-04-13 16:33:19.091] === Lebai Robot Controller 종료 ===

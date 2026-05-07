@@ -1,12 +1,12 @@
 ﻿{
     "name":  "티칭 1 - 퍼즐 픽앤플레이스",
     "description":  "단순화된 픽앤플레이스",
-    "totalDuration":  6.2,
+    "totalDuration":  6.7,
     "steps":  [
                   {
                       "stepNumber":  1,
                       "name":  "SRC 위치로 이동 (J2 -32.5)",
-                      "time":  0.0,
+                      "time":  0,
                       "duration":  1,
                       "action":  {
                                      "type":  "move_joint",
@@ -25,7 +25,7 @@
                   {
                       "stepNumber":  2,
                       "name":  "SRC 최종 하강",
-                      "time":  1.0,
+                      "time":  1,
                       "duration":  0.5,
                       "action":  {
                                      "type":  "move_joint",
@@ -64,7 +64,7 @@
                   {
                       "stepNumber":  5,
                       "name":  "대기 (2초) - 흡착 대기",
-                      "time":  2.0,
+                      "time":  2,
                       "duration":  2,
                       "action":  {
                                      "type":  "wait"
@@ -72,21 +72,21 @@
                   },
                   {
                       "stepNumber":  6,
-                      "name":  "SRC 리프트 (5도)",
-                      "time":  4.0,
+                      "name":  "J2 리프트 (이동 준비)",
+                      "time":  4,
                       "duration":  0.5,
                       "action":  {
                                      "type":  "move_joint",
                                      "joints":  [
                                                     80.0,
-                                                    -28.0,
+                                                    -32.5,
                                                     42.4,
                                                     -20,
                                                     -20,
                                                     0
                                                 ],
-                                     "velocity":  5.0,
-                                     "acceleration":  8.0
+                                     "velocity":  5,
+                                     "acceleration":  8
                                  }
                   },
                   {
@@ -136,6 +136,25 @@
                                      "type":  "set_do",
                                      "pin":  0,
                                      "value":  1
+                                 }
+                  },
+                  {
+                      "stepNumber":  10,
+                      "name":  "J2 리프트 (완료)",
+                      "time":  6.2,
+                      "duration":  0.5,
+                      "action":  {
+                                     "type":  "move_joint",
+                                     "joints":  [
+                                                    103.9,
+                                                    -37.6,
+                                                    56.15,
+                                                    -20,
+                                                    3.6,
+                                                    -9
+                                                ],
+                                     "velocity":  5,
+                                     "acceleration":  8
                                  }
                   }
               ]

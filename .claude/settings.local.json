@@ -26,7 +26,8 @@
       "Bash(powershell.exe -Command:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
-      "Bash(powershell -Command \"Write-Host ''hello''\")"
+      "Bash(powershell -Command \"Write-Host ''hello''\")",
+      "WebFetch(domain:github.com)"
     ]
   }
 }
